@@ -311,6 +311,32 @@ canvas {
     color: var(--text-primary);
 }
 
+#console-msg-1.missile-warning-active {
+    color: #ff2244;
+    font-weight: bold;
+    text-shadow:
+        0 0 6px #ff0033,
+        0 0 14px #ff2244,
+        0 0 24px rgba(255, 34, 68, 0.8);
+    animation: missileWarningPulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes missileWarningPulse {
+    0% {
+        color: #ff3355;
+        text-shadow:
+            0 0 6px #ff0033,
+            0 0 12px #ff2244;
+    }
+    100% {
+        color: #ff6677;
+        text-shadow:
+            0 0 10px #ff1133,
+            0 0 20px #ff4466,
+            0 0 32px rgba(255, 50, 80, 0.9);
+    }
+}
+
 #console-msg-2.beam-code-active {
     display: flex;
     align-items: baseline;

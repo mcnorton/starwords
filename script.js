@@ -110,6 +110,69 @@ function showConsoleMsg2(text) {
     msg2.classList.remove('beam-code-active');
 }
 
+let hitMessageTimeout = null;
+
+function clearHitMessageTimeout() {
+    if (hitMessageTimeout !== null) {
+        clearTimeout(hitMessageTimeout);
+        hitMessageTimeout = null;
+    }
+}
+
+function showHitMessage(word) {
+    clearHitMessageTimeout();
+    const hitText = `${word}에 명중하였습니다.`;
+    msg1.textContent = hitText;
+    hitMessageTimeout = setTimeout(() => {
+        hitMessageTimeout = null;
+        if (!missileWarningActive && msg1.textContent === hitText) {
+            msg1.textContent = '명령을 기다립니다.';
+        }
+    }, 3000);
+}
+
+const MISSILE_WARNING_DISTANCE = 220;
+const MISSILE_WARNING_TEXT = '[경고] 미사일이 본 함선에 충격합니다. 화살표키를 이용해 회피하십시오.';
+let missileWarningActive = false;
+let msg1BeforeWarning = '';
+
+function clearMissileWarning(restoreMessage = true) {
+    missileWarningActive = false;
+    msg1.classList.remove('missile-warning-active');
+    if (restoreMessage && msg1BeforeWarning) {
+        msg1.textContent = msg1BeforeWarning;
+    }
+}
+
+function updateMissileProximityWarning() {
+    const px = player.x + player.width / 2;
+    const py = player.y;
+    let isClose = false;
+
+    for (let i = 0; i < missiles.length; i++) {
+        const m = missiles[i];
+        if (m.delay > 0) continue;
+
+        const dx = px - m.x;
+        const dy = py - m.y;
+        if (Math.sqrt(dx * dx + dy * dy) < MISSILE_WARNING_DISTANCE) {
+            isClose = true;
+            break;
+        }
+    }
+
+    if (isClose) {
+        if (!missileWarningActive) {
+            msg1BeforeWarning = msg1.textContent;
+            missileWarningActive = true;
+        }
+        msg1.textContent = MISSILE_WARNING_TEXT;
+        msg1.classList.add('missile-warning-active');
+    } else if (missileWarningActive) {
+        clearMissileWarning();
+    }
+}
+
 // Entities
 const player = {
     x: 50,
@@ -280,11 +343,12 @@ function processTyping(text) {
             destroyEnemy(enemy);
         });
         hit = true;
-        msg1.textContent = `${targets[0].word}에 명중하였습니다.`;
+        showHitMessage(targets[0].word);
         showConsoleMsg2("새로운 목표물 설정하십시오.");
     }
 
     if (!hit) {
+        clearHitMessageTimeout();
         failedChars += text.length;
         beamCharge = Math.max(0, beamCharge - 10);
         updateBeamCharge();
@@ -428,6 +492,8 @@ function resetGame() {
     missiles = [];
     lasers = [];
     particles = [];
+    clearHitMessageTimeout();
+    clearMissileWarning(false);
     msg1.textContent = "다수의 적 함선 탐지. 전원 전투태세. 함포가 준비되었습니다.";
     showConsoleMsg2("목표물을 설정하십시오.");
 }
@@ -954,6 +1020,8 @@ function update(dt) {
             missiles.splice(i, 1);
         }
     }
+
+    updateMissileProximityWarning();
 }
 
 function fireEnemyMissiles(enemy) {
@@ -997,6 +1065,289 @@ function fireEnemyMissiles(enemy) {
     }
 }
 
+function darkenColor(color, amount) {
+    const hex = color.replace('#', '');
+    const r = Math.max(0, parseInt(hex.substring(0, 2), 16) - amount);
+    const g = Math.max(0, parseInt(hex.substring(2, 4), 16) - amount);
+    const b = Math.max(0, parseInt(hex.substring(4, 6), 16) - amount);
+    return `rgb(${r}, ${g}, ${b})`;
+}
+
+function lightenColor(color, amount) {
+    const hex = color.replace('#', '');
+    const r = Math.min(255, parseInt(hex.substring(0, 2), 16) + amount);
+    const g = Math.min(255, parseInt(hex.substring(2, 4), 16) + amount);
+    const b = Math.min(255, parseInt(hex.substring(4, 6), 16) + amount);
+    return `rgb(${r}, ${g}, ${b})`;
+}
+
+function drawFalcon(cx, cy, w, h, color = '#00ffcc') {
+    const hw = w / 2;
+    const hh = h / 2;
+
+    ctx.save();
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.ellipse(cx - hw * 0.2, cy, hw * 0.5, hh * 0.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(cx + hw * 0.1, cy - hh * 0.25);
+    ctx.lineTo(cx + hw * 0.95, cy - hh * 0.12);
+    ctx.lineTo(cx + hw * 0.85, cy - hh * 0.35);
+    ctx.lineTo(cx + hw * 0.15, cy - hh * 0.45);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(cx + hw * 0.1, cy + hh * 0.25);
+    ctx.lineTo(cx + hw * 0.95, cy + hh * 0.12);
+    ctx.lineTo(cx + hw * 0.85, cy + hh * 0.35);
+    ctx.lineTo(cx + hw * 0.15, cy + hh * 0.45);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = darkenColor(color, 40);
+    ctx.beginPath();
+    ctx.ellipse(cx - hw * 0.55, cy, hw * 0.18, hh * 0.35, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = lightenColor(color, 50);
+    ctx.beginPath();
+    ctx.ellipse(cx - hw * 0.05, cy - hh * 0.55, hw * 0.12, hh * 0.18, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = lightenColor(color, 80);
+    ctx.beginPath();
+    ctx.arc(cx - hw * 0.65, cy, hw * 0.06, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx - hw * 0.72, cy - hh * 0.15, hw * 0.04, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx - hw * 0.72, cy + hh * 0.15, hw * 0.04, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = darkenColor(color, 60);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - hw * 0.45, cy - hh * 0.5);
+    ctx.lineTo(cx + hw * 0.3, cy - hh * 0.35);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - hw * 0.45, cy + hh * 0.5);
+    ctx.lineTo(cx + hw * 0.3, cy + hh * 0.35);
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+function drawStarDestroyer(cx, cy, w, h, color = 'red') {
+    const hw = w / 2;
+    const hh = h / 2;
+
+    ctx.save();
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(cx - hw, cy);
+    ctx.lineTo(cx + hw * 0.85, cy - hh);
+    ctx.lineTo(cx + hw * 0.85, cy + hh);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = darkenColor('#cc0000', 30);
+    ctx.fillRect(cx + hw * 0.55, cy - hh * 0.35, hw * 0.3, hh * 0.7);
+
+    ctx.fillStyle = darkenColor('#cc0000', 50);
+    ctx.beginPath();
+    ctx.moveTo(cx + hw * 0.7, cy - hh * 0.2);
+    ctx.lineTo(cx + hw * 0.85, cy - hh * 0.15);
+    ctx.lineTo(cx + hw * 0.85, cy + hh * 0.15);
+    ctx.lineTo(cx + hw * 0.7, cy + hh * 0.2);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = darkenColor('#cc0000', 20);
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 4; i++) {
+        const t = 0.2 + i * 0.18;
+        const x = cx - hw + (cx + hw * 0.85 - (cx - hw)) * t;
+        const halfW = hh * (0.15 + t * 0.85);
+        ctx.beginPath();
+        ctx.moveTo(x, cy - halfW);
+        ctx.lineTo(x, cy + halfW);
+        ctx.stroke();
+    }
+
+    ctx.restore();
+}
+
+function drawTieFighter(cx, cy, w, h, color = '#00ff00') {
+    const hw = w / 2;
+    const hh = h / 2;
+
+    ctx.save();
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i - Math.PI / 2;
+        const px = cx + Math.cos(angle) * hw * 0.85;
+        const py = cy - hh * 0.75 + Math.sin(angle) * hh * 0.35;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i - Math.PI / 2;
+        const px = cx + Math.cos(angle) * hw * 0.85;
+        const py = cy + hh * 0.75 + Math.sin(angle) * hh * 0.35;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = darkenColor(color, 50);
+    ctx.beginPath();
+    ctx.arc(cx, cy, hw * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = darkenColor(color, 80);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - hw * 0.15, cy);
+    ctx.lineTo(cx + hw * 0.15, cy);
+    ctx.stroke();
+
+    ctx.fillStyle = lightenColor(color, 40);
+    ctx.beginPath();
+    ctx.arc(cx - hw * 0.08, cy, hw * 0.06, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = darkenColor(color, 30);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - hh * 0.4);
+    ctx.lineTo(cx, cy - hh * 0.75);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + hh * 0.4);
+    ctx.lineTo(cx, cy + hh * 0.75);
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+function drawYwing(cx, cy, w, h, color = 'yellow') {
+    const hw = w / 2;
+    const hh = h / 2;
+
+    ctx.save();
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.ellipse(cx - hw * 0.55, cy, hw * 0.2, hh * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillRect(cx - hw * 0.4, cy - hh * 0.08, hw * 0.75, hh * 0.16);
+
+    ctx.beginPath();
+    ctx.ellipse(cx + hw * 0.35, cy - hh * 0.55, hw * 0.12, hh * 0.45, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(cx + hw * 0.35, cy + hh * 0.55, hw * 0.12, hh * 0.45, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.strokeStyle = darkenColor('#cccc00', 40);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - hw * 0.15, cy - hh * 0.1);
+    ctx.lineTo(cx + hw * 0.25, cy - hh * 0.45);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx - hw * 0.15, cy + hh * 0.1);
+    ctx.lineTo(cx + hw * 0.25, cy + hh * 0.45);
+    ctx.stroke();
+
+    ctx.fillStyle = darkenColor('#cccc00', 30);
+    ctx.beginPath();
+    ctx.arc(cx + hw * 0.35, cy - hh * 0.55, hw * 0.06, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx + hw * 0.35, cy + hh * 0.55, hw * 0.06, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = lightenColor('#cccc00', 30);
+    ctx.beginPath();
+    ctx.arc(cx - hw * 0.1, cy, hw * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+}
+
+function drawArquitens(cx, cy, w, h, color = 'orange') {
+    const hw = w / 2;
+    const hh = h / 2;
+
+    ctx.save();
+
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(cx - hw, cy);
+    ctx.lineTo(cx + hw * 0.7, cy - hh * 0.55);
+    ctx.lineTo(cx + hw * 0.7, cy + hh * 0.55);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = darkenColor('#cc7700', 30);
+    ctx.fillRect(cx + hw * 0.35, cy - hh * 0.25, hw * 0.25, hh * 0.5);
+
+    ctx.fillStyle = darkenColor('#cc7700', 50);
+    ctx.beginPath();
+    ctx.moveTo(cx + hw * 0.5, cy - hh * 0.15);
+    ctx.lineTo(cx + hw * 0.7, cy - hh * 0.1);
+    ctx.lineTo(cx + hw * 0.7, cy + hh * 0.1);
+    ctx.lineTo(cx + hw * 0.5, cy + hh * 0.15);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = darkenColor('#cc7700', 20);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - hw * 0.5, cy);
+    ctx.lineTo(cx + hw * 0.5, cy);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - hh * 0.35);
+    ctx.lineTo(cx, cy + hh * 0.35);
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+function drawEnemyShip(e) {
+    const cx = e.x;
+    const cy = e.y;
+    const w = e.width;
+    const h = e.height;
+
+    if (e.enemyType === 1) {
+        drawTieFighter(cx, cy, w, h, '#00ff00');
+    } else if (e.enemyType === 2) {
+        drawYwing(cx, cy, w, h, 'yellow');
+    } else if (e.enemyType === 3) {
+        drawArquitens(cx, cy, w, h, 'orange');
+    } else if (e.enemyType === 'line') {
+        drawStarDestroyer(cx, cy, w, h, 'red');
+    }
+}
+
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -1009,12 +1360,13 @@ function draw() {
         drawEnergyShieldBubble();
 
         if (player.invincibleTimer <= 0 || Math.floor(player.invincibleTimer * 10) % 2 === 0) {
-            ctx.fillStyle = '#00ffcc';
-            ctx.beginPath();
-            ctx.moveTo(player.x + player.width, player.y);
-            ctx.lineTo(player.x, player.y - player.height / 2);
-            ctx.lineTo(player.x, player.y + player.height / 2);
-            ctx.fill();
+            drawFalcon(
+                player.x + player.width / 2,
+                player.y,
+                player.width,
+                player.height,
+                '#00ffcc'
+            );
         }
     }
 
@@ -1085,16 +1437,7 @@ function draw() {
     });
 
     enemies.forEach(e => {
-        if (e.enemyType === 1) ctx.fillStyle = '#00ff00';
-        else if (e.enemyType === 2) ctx.fillStyle = 'yellow';
-        else if (e.enemyType === 3) ctx.fillStyle = 'orange';
-        else if (e.enemyType === 'line') ctx.fillStyle = 'red';
-
-        ctx.beginPath();
-        ctx.moveTo(e.x - e.width / 2, e.y);
-        ctx.lineTo(e.x + e.width / 2, e.y - e.height / 2);
-        ctx.lineTo(e.x + e.width / 2, e.y + e.height / 2);
-        ctx.fill();
+        drawEnemyShip(e);
 
         if (e.word !== "") {
             ctx.fillStyle = '#fff';
@@ -1168,6 +1511,7 @@ function draw() {
 
 function handleChallengeClear() {
     gameState = 'CHALLENGE_CLEAR';
+    clearMissileWarning(false);
     enemies = [];
     missiles = [];
     lasers = [];
@@ -1183,7 +1527,9 @@ function handleChallengeClear() {
 
 function showGameOver() {
     gameState = 'GAME_OVER';
-    let skillBonus = calculateTriggeringSkill() * 100;
+    clearMissileWarning(false);
+    const triggeringSkill = calculateTriggeringSkill();
+    let skillBonus = triggeringSkill * 100;
     let finalMissionPoints = missionPoints + skillBonus;
 
     document.getElementById('final-mission-points').textContent = finalMissionPoints;
