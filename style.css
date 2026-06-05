@@ -307,6 +307,48 @@ canvas {
     color: #000;
 }
 
+/* ── Center Banner (countdown & challenge intro) ── */
+.center-banner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 4;
+    pointer-events: none;
+    font-family: var(--font-pixel);
+    text-align: center;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.center-banner.countdown {
+    font-size: 120px;
+    text-shadow:
+        3px 3px 0 #ff00ff,
+        0 0 24px rgba(0, 255, 204, 0.8);
+    animation: countdownPop 1s ease-out forwards;
+}
+
+.center-banner.challenge {
+    font-size: 46px;
+    text-shadow:
+        2px 2px 0 #ff00ff,
+        0 0 24px rgba(0, 255, 204, 0.6);
+    animation: challengeReveal 0.6s ease-out forwards;
+}
+
+@keyframes countdownPop {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(2.2); }
+    25% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0.85; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes challengeReveal {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.6); letter-spacing: 24px; }
+    60% { opacity: 1; }
+    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); letter-spacing: 2px; }
+}
+
 /* ── Console ── */
 #console {
     height: 90px;

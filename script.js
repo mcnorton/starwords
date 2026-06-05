@@ -42,13 +42,17 @@ const pauseOverlay = document.getElementById('pause-overlay');
 const modalChallengeClear = document.getElementById('modal-challenge-clear');
 const modalGameOver = document.getElementById('modal-game-over');
 const modalSettings = document.getElementById('modal-settings');
+const centerBanner = document.getElementById('center-banner');
 
 // Data
 let wordsList = WORD_DATA_KO.words;
 let beamCodes = WORD_DATA_KO.beamCodes;
 
 // Game State
-let gameState = 'START'; // START, PLAYING, BEAM_INPUT, CHALLENGE_CLEAR, GAME_OVER
+let gameState = 'START'; // START, PREP, COUNTDOWN, PLAYING, BEAM_INPUT, CHALLENGE_CLEAR, GAME_OVER
+let battlePrepActive = false; // "Ready for Battle" 창이 게임 시작 전 단계로 열려있는지 여부
+let bannerTimeout = null;
+let countdownTimeouts = [];
 let currentChallenge = 1;
 let maxChallenge = 15;
 let energyShield = 100;
@@ -261,7 +265,20 @@ function proceedChallengeClear() {
 
 function proceedGameOver() {
     modalGameOver.classList.add('hidden');
-    startGame();
+    returnToTitle();
+}
+
+// 게임 오버 후 모든 상태를 초기화하고 타이틀 화면으로 돌아갑니다.
+// (플레이어가 이름/언어를 다시 설정할 수 있도록 START 단계로 복귀)
+function returnToTitle() {
+    clearBannerTimers();
+    hideCenterBanner();
+    resetGame();
+    battlePrepActive = false;
+    gameState = 'START';
+    modalSettings.classList.add('hidden');
+    disableTypeInput();
+    startOverlay.classList.remove('hidden');
 }
 
 function pauseGame() {
@@ -311,7 +328,7 @@ const keys = {
 };
 
 startOverlay.addEventListener('click', () => {
-    if (gameState === 'START') startGame();
+    if (gameState === 'START') startBattlePrep();
 });
 
 document.getElementById('btn-resume').addEventListener('click', () => {
@@ -359,7 +376,7 @@ window.addEventListener('keydown', e => {
         }
         if (gameState === 'START') {
             e.preventDefault();
-            startGame();
+            startBattlePrep();
             return;
         }
     }
@@ -407,7 +424,7 @@ typeInput.addEventListener('keydown', e => {
         e.preventDefault();
 
         if (gameState === 'START') {
-            startGame();
+            startBattlePrep();
             typeInput.value = '';
             return;
         }
@@ -472,6 +489,15 @@ function closeSettingsWithoutSave() {
     document.getElementById('setting-name').value = settings.name;
     document.getElementById('setting-lang').value = settings.lang;
     modalSettings.classList.add('hidden');
+
+    // 게임 시작 전 "Ready for Battle" 단계에서 닫으면 타이틀 화면으로 돌아갑니다.
+    if (battlePrepActive) {
+        battlePrepActive = false;
+        gameState = 'START';
+        startOverlay.classList.remove('hidden');
+        return;
+    }
+
     resumeAfterSettings();
 }
 
@@ -489,6 +515,14 @@ function saveSettings() {
     localStorage.setItem('starwords_settings', JSON.stringify(settings));
     updateLanguage();
     modalSettings.classList.add('hidden');
+
+    // "Ready for Battle" 단계에서 Deploy 하면 카운트다운 → CHALLENGE 1 순서로 진입합니다.
+    if (battlePrepActive) {
+        battlePrepActive = false;
+        startCountdownSequence();
+        return;
+    }
+
     resumeAfterSettings();
 }
 
@@ -597,10 +631,76 @@ function fireSuperPowerBeam() {
     showConsoleMsg2("새로운 목표물을 설정하십시오.");
 }
 
+// ── 시작 스토리 시퀀스 ──
+// 화면 중앙 배너(카운트다운 / CHALLENGE 인트로)를 다루는 헬퍼들입니다.
+function clearBannerTimers() {
+    if (bannerTimeout !== null) {
+        clearTimeout(bannerTimeout);
+        bannerTimeout = null;
+    }
+    countdownTimeouts.forEach(t => clearTimeout(t));
+    countdownTimeouts = [];
+}
+
+function showCenterBanner(text, variant) {
+    centerBanner.textContent = text;
+    centerBanner.classList.remove('hidden', 'countdown', 'challenge');
+    // 같은 요소를 재사용하므로 reflow를 강제해 CSS 애니메이션을 다시 시작시킵니다.
+    void centerBanner.offsetWidth;
+    centerBanner.classList.add(variant);
+}
+
+function hideCenterBanner() {
+    centerBanner.classList.add('hidden');
+}
+
+function showChallengeBanner(challengeNum) {
+    showCenterBanner(`CHALLENGE ${challengeNum}`, 'challenge');
+    if (bannerTimeout !== null) {
+        clearTimeout(bannerTimeout);
+    }
+    bannerTimeout = setTimeout(() => {
+        bannerTimeout = null;
+        hideCenterBanner();
+    }, 2000);
+}
+
+// 타이틀에서 시작을 누르면 "Ready for Battle" 창(설정 모달)을 띄웁니다.
+function startBattlePrep() {
+    clearBannerTimers();
+    hideCenterBanner();
+    startOverlay.classList.add('hidden');
+    battlePrepActive = true;
+    gameState = 'PREP';
+    document.getElementById('setting-name').value = settings.name;
+    document.getElementById('setting-lang').value = settings.lang;
+    disableTypeInput();
+    modalSettings.classList.remove('hidden');
+    document.getElementById('setting-name').focus();
+}
+
+// "3 > 2 > 1" 카운트다운 후 첫 챌린지를 시작합니다.
+function startCountdownSequence() {
+    clearBannerTimers();
+    gameState = 'COUNTDOWN';
+    disableTypeInput();
+
+    showCenterBanner('3', 'countdown');
+    countdownTimeouts.push(setTimeout(() => showCenterBanner('2', 'countdown'), 1000));
+    countdownTimeouts.push(setTimeout(() => showCenterBanner('1', 'countdown'), 2000));
+    countdownTimeouts.push(setTimeout(() => {
+        countdownTimeouts = [];
+        hideCenterBanner();
+        startGame();
+        showChallengeBanner(currentChallenge);
+    }, 3000));
+}
+
 function startGame() {
     resetGame();
     startOverlay.classList.add('hidden');
     startTime = Date.now();
+    lastTime = Date.now();
     gameState = 'PLAYING';
     focusTypeInput();
     spawnEnemies();
@@ -636,6 +736,7 @@ function nextChallenge() {
     focusTypeInput();
     lastTime = Date.now();
     updateMissionPoints();
+    showChallengeBanner(currentChallenge);
 }
 
 function resetHudScores() {
