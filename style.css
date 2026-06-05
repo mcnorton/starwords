@@ -419,6 +419,12 @@ canvas {
     caret-color: var(--frame-bright);
 }
 
+#type-input:disabled {
+    opacity: 0.4;
+    cursor: default;
+    caret-color: transparent;
+}
+
 /* ── Modals ── */
 .modal {
     position: absolute;

@@ -190,6 +190,13 @@ const player = {
 let enemies = [];
 let missiles = [];
 let lasers = [];
+let fireQueue = [];
+let fireQueueDelay = 0;
+const CANNON_FIRE_INTERVAL = 0.4;
+const END_SCREEN_DELAY = 2;
+let pendingChallengeClear = false;
+let pendingGameOver = false;
+let endScreenDelay = 0;
 let stars = [];
 let particles = [];
 
@@ -260,6 +267,23 @@ function pauseGame() {
     pauseOverlay.classList.remove('hidden');
 }
 
+function disableTypeInput() {
+    if (typeInput.disabled) return;
+    typeInput.disabled = true;
+    typeInput.blur();
+    typeInput.value = '';
+    currentTypingStartTime = null;
+}
+
+function enableTypeInput() {
+    typeInput.disabled = false;
+}
+
+function focusTypeInput() {
+    enableTypeInput();
+    typeInput.focus();
+}
+
 function resumeGame() {
     if (!isPaused) return;
 
@@ -270,7 +294,7 @@ function resumeGame() {
     }
     isPaused = false;
     pauseOverlay.classList.add('hidden');
-    typeInput.focus();
+    focusTypeInput();
 }
 
 // Input Handling
@@ -323,7 +347,7 @@ window.addEventListener('keydown', e => {
         e.preventDefault();
     }
 
-    if (gameState === 'PLAYING' || gameState === 'BEAM_INPUT') {
+    if ((gameState === 'PLAYING' || gameState === 'BEAM_INPUT') && !typeInput.disabled) {
         typeInput.focus();
     }
 });
@@ -335,6 +359,8 @@ window.addEventListener('keyup', e => {
 });
 
 typeInput.addEventListener('input', e => {
+    if (typeInput.disabled) return;
+
     if (typeInput.value.length > 0 && !currentTypingStartTime) {
         currentTypingStartTime = Date.now();
     }
@@ -344,6 +370,11 @@ typeInput.addEventListener('input', e => {
 });
 
 typeInput.addEventListener('keydown', e => {
+    if (typeInput.disabled) {
+        e.preventDefault();
+        return;
+    }
+
     if (isEnterKey(e)) {
         if (!modalChallengeClear.classList.contains('hidden') ||
             !modalGameOver.classList.contains('hidden') ||
@@ -369,6 +400,10 @@ typeInput.addEventListener('keydown', e => {
             }
 
             if (text === '') return;
+
+            if (pendingChallengeClear || pendingGameOver) {
+                return;
+            }
 
             if (gameState === 'PLAYING') {
                 processTyping(text);
@@ -397,7 +432,7 @@ document.getElementById('btn-save-settings').addEventListener('click', () => {
     localStorage.setItem('starwords_settings', JSON.stringify(settings));
     updateLanguage();
     modalSettings.classList.add('hidden');
-    typeInput.focus();
+    focusTypeInput();
 });
 
 document.getElementById('btn-next-challenge').addEventListener('click', proceedChallengeClear);
@@ -416,8 +451,8 @@ function processTyping(text) {
     if (targets.length > 0) {
         targets.forEach(enemy => {
             totalTypedChars += text.length;
-            destroyEnemy(enemy);
         });
+        enqueueCannonFire(targets);
         hit = true;
         showHitMessage(targets[0].word);
         showConsoleMsg2("새로운 목표물 설정하십시오.");
@@ -456,8 +491,8 @@ function processBeamTyping(text) {
         if (targets.length > 0) {
             targets.forEach(enemy => {
                 totalTypedChars += text.length;
-                destroyEnemy(enemy);
             });
+            enqueueCannonFire(targets);
             hit = true;
         }
 
@@ -490,6 +525,9 @@ function fireSuperPowerBeam() {
     beamFires++;
     addMissionPoints(1000);
 
+    fireQueue = [];
+    fireQueueDelay = 0;
+
     let targets = [...enemies];
     targets.forEach(e => destroyEnemy(e));
 
@@ -503,7 +541,7 @@ function startGame() {
     startOverlay.classList.add('hidden');
     startTime = Date.now();
     gameState = 'PLAYING';
-    typeInput.focus();
+    focusTypeInput();
     spawnEnemies();
 }
 
@@ -521,6 +559,8 @@ function nextChallenge() {
     enemies = [];
     missiles = [];
     lasers = [];
+    fireQueue = [];
+    fireQueueDelay = 0;
     particles = [];
     spawnEnemies();
 
@@ -532,7 +572,7 @@ function nextChallenge() {
         showConsoleMsg2("모든 대원 정위치. 첫 목표물을 말씀하십시오.");
     }
 
-    typeInput.focus();
+    focusTypeInput();
     lastTime = Date.now();
     updateMissionPoints();
 }
@@ -569,14 +609,57 @@ function resetGame() {
     enemies = [];
     missiles = [];
     lasers = [];
+    fireQueue = [];
+    fireQueueDelay = 0;
     particles = [];
     clearHitMessageTimeout();
     clearMissileWarning(false);
     isPaused = false;
     pauseStartTime = 0;
     pauseOverlay.classList.add('hidden');
+    pendingChallengeClear = false;
+    pendingGameOver = false;
+    endScreenDelay = 0;
+    enableTypeInput();
     msg1.textContent = "다수의 적 함선 탐지. 전원 전투태세. 함포가 준비되었습니다.";
     showConsoleMsg2("목표물을 설정하십시오.");
+}
+
+function enqueueCannonFire(targets) {
+    const wasIdle = fireQueue.length === 0;
+    for (const enemy of targets) {
+        fireQueue.push(enemy);
+    }
+    if (wasIdle) {
+        fireNextInQueue();
+    }
+}
+
+function fireNextInQueue() {
+    if (fireQueue.length === 0) {
+        fireQueueDelay = 0;
+        return;
+    }
+
+    const enemy = fireQueue.shift();
+    if (enemies.includes(enemy)) {
+        destroyEnemy(enemy);
+    }
+
+    if (fireQueue.length > 0) {
+        fireQueueDelay = CANNON_FIRE_INTERVAL;
+    } else {
+        fireQueueDelay = 0;
+    }
+}
+
+function updateFireQueue(dt) {
+    if (fireQueue.length === 0) return;
+
+    fireQueueDelay -= dt;
+    if (fireQueueDelay <= 0) {
+        fireNextInQueue();
+    }
 }
 
 function destroyEnemy(enemy) {
@@ -826,6 +909,64 @@ function calculateTriggeringSkill() {
     return skill;
 }
 
+function scheduleChallengeClear() {
+    if (pendingChallengeClear || pendingGameOver || gameState === 'CHALLENGE_CLEAR' || gameState === 'GAME_OVER') {
+        return;
+    }
+    pendingChallengeClear = true;
+    endScreenDelay = 0;
+    if (fireQueue.length === 0) {
+        disableTypeInput();
+    }
+}
+
+function scheduleGameOver() {
+    if (pendingChallengeClear || pendingGameOver || gameState === 'GAME_OVER') {
+        return;
+    }
+    pendingGameOver = true;
+    endScreenDelay = 0;
+    if (energyShield <= 0) {
+        createHugeExplosion(player.x + player.width / 2, player.y, '#00ffcc');
+    }
+    if (fireQueue.length === 0) {
+        disableTypeInput();
+    }
+}
+
+function updateEndingSequence(dt) {
+    updateFireQueue(dt);
+
+    for (let i = lasers.length - 1; i >= 0; i--) {
+        let l = lasers[i];
+        l.timer -= dt;
+        if (l.timer <= -0.5) {
+            lasers.splice(i, 1);
+        }
+    }
+
+    if (fireQueue.length > 0) {
+        endScreenDelay = 0;
+        return;
+    }
+
+    disableTypeInput();
+
+    endScreenDelay += dt;
+    if (endScreenDelay < END_SCREEN_DELAY) {
+        return;
+    }
+
+    endScreenDelay = 0;
+    if (pendingChallengeClear) {
+        pendingChallengeClear = false;
+        handleChallengeClear();
+    } else if (pendingGameOver) {
+        pendingGameOver = false;
+        showGameOver();
+    }
+}
+
 function gameLoop() {
     if (isPaused) {
         requestAnimationFrame(gameLoop);
@@ -852,12 +993,16 @@ function gameLoop() {
     }
 
     if (gameState === 'PLAYING' || gameState === 'BEAM_INPUT') {
-        update(dt);
+        if (pendingChallengeClear || pendingGameOver) {
+            updateEndingSequence(dt);
+        } else {
+            update(dt);
 
-        if (challengeEnemiesDestroyed >= currentChallenge * 10) {
-            handleChallengeClear();
-        } else if (energyShield <= 0) {
-            showGameOver();
+            if (challengeEnemiesDestroyed >= currentChallenge * 10) {
+                scheduleChallengeClear();
+            } else if (energyShield <= 0) {
+                scheduleGameOver();
+            }
         }
     }
 
@@ -868,6 +1013,7 @@ function gameLoop() {
 
 function update(dt) {
     calculateTriggeringSkill();
+    updateFireQueue(dt);
 
     if (player.invincibleTimer > 0) {
         player.invincibleTimer -= dt;
@@ -1601,6 +1747,8 @@ function handleChallengeClear() {
     enemies = [];
     missiles = [];
     lasers = [];
+    fireQueue = [];
+    fireQueueDelay = 0;
 
     let challengePoints = challengeEnemiesDestroyed * 100 + challengeBeamFires * 1000;
 
@@ -1622,10 +1770,6 @@ function showGameOver() {
     document.getElementById('result-skill').textContent = triggeringSkill;
     document.getElementById('result-challenge-level').textContent = currentChallenge;
     document.getElementById('final-mission-points').textContent = finalMissionPoints;
-
-    if (energyShield <= 0) {
-        createHugeExplosion(player.x + player.width / 2, player.y, '#00ffcc');
-    }
 
     let scores = readJsonFromLocalStorage('starwords_scores', []);
     if (!Array.isArray(scores)) {
