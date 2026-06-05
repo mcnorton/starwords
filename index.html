@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STAR WORDS: Space Typing Game</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="game-container">
+        <header id="hud">
+            <div class="hud-readout">
+                <span class="hud-label">CHALLENGE</span>
+                <span id="challenge-level" class="hud-value hud-value-slot slot-2">1</span>
+            </div>
+            <div class="hud-readout">
+                <span class="hud-label">ENERGY SHIELD</span>
+                <div class="gauge-group">
+                    <div class="gauge-container energy-shield-gauge">
+                        <div id="energy-shield-gauge" style="width: 100%;"></div>
+                    </div>
+                    <span id="energy-shield-value" class="hud-value hud-value-slot slot-3">100</span>
+                </div>
+            </div>
+            <div class="hud-readout">
+                <span class="hud-label">POWER BEAM</span>
+                <div class="gauge-group">
+                    <div class="gauge-container beam-gauge">
+                        <div id="beam-gauge" style="width: 0%;"></div>
+                    </div>
+                    <span id="beam-value" class="hud-value hud-value-slot slot-3">0</span>
+                </div>
+            </div>
+            <div class="hud-readout">
+                <span class="hud-label">TRIGGERING SKILL</span>
+                <span id="triggering-skill" class="hud-value hud-value-slot slot-4">0</span>
+            </div>
+            <div class="hud-readout mission-points-readout">
+                <span class="hud-label">MISSION PTS</span>
+                <span id="mission-points" class="hud-value hud-value-slot slot-6">0</span>
+            </div>
+            <div class="settings-icon" id="btn-settings">⚙</div>
+        </header>
+        
+        <main id="game-area">
+            <canvas id="game-canvas"></canvas>
+            <div id="cockpit-frame">
+                <div class="cockpit-corner cockpit-corner-tl"></div>
+                <div class="cockpit-corner cockpit-corner-tr"></div>
+                <div class="cockpit-corner cockpit-corner-bl"></div>
+                <div class="cockpit-corner cockpit-corner-br"></div>
+                <div class="cockpit-vignette"></div>
+            </div>
+            <div id="start-overlay" class="overlay">
+                <h1>STAR WORDS</h1>
+                <p>Press [ENTER] or Click to Start</p>
+            </div>
+        </main>
+        
+        <footer id="console">
+            <div id="console-msg-1">적 함선 출현. 함포가 준비되었습니다.</div>
+            <div id="console-msg-2">
+                <span id="console-msg-2-text">목표물을 설정하십시오.</span>
+                <span id="beam-code-label" class="beam-code-label hidden">POWER BEAM CODE :</span>
+                <span id="beam-code-text" class="beam-code-text hidden"></span>
+            </div>
+            <div class="input-container">
+                <span class="prompt-arrow">&gt;</span>
+                <input type="text" id="type-input" autocomplete="off" spellcheck="false">
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-challenge-clear" class="modal hidden">
+        <h2>Challenge Clear</h2>
+        <p>Ships Destroyed: <span id="clear-ships">0</span> x 100</p>
+        <p>Power Beam Fired: <span id="clear-beams">0</span> x 1000</p>
+        <p>Mission Points: <span id="clear-mission-points">0</span></p>
+        <button id="btn-next-challenge">Next Challenge</button>
+    </div>
+
+    <div id="modal-game-over" class="modal hidden">
+        <h2>GAME OVER</h2>
+        <p>Final Mission Points: <span id="final-mission-points">0</span></p>
+        <h3>TOP 10</h3>
+        <ul id="scoreboard-list"></ul>
+        <button id="btn-restart">Restart</button>
+    </div>
+
+    <div id="modal-settings" class="modal hidden">
+        <h2>Settings</h2>
+        <label>
+            Player Name:
+            <input type="text" id="setting-name" value="Player">
+        </label>
+        <br><br>
+        <label>
+            Language:
+            <select id="setting-lang">
+                <option value="ko">한글</option>
+                <option value="en">English</option>
+            </select>
+        </label>
+        <br><br>
+        <button id="btn-save-settings">Save & Close</button>
+    </div>
+
+    <script src="data/ko.js"></script>
+    <script src="data/en.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
