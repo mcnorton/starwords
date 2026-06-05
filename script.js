@@ -1587,11 +1587,12 @@ function showGameOver() {
     gameState = 'GAME_OVER';
     clearMissileWarning(false);
     const triggeringSkill = calculateTriggeringSkill();
-    let skillBonus = triggeringSkill * 100;
+    let skillBonus = triggeringSkill * currentChallenge;
     let finalMissionPoints = missionPoints + skillBonus;
 
     document.getElementById('result-mission-points').textContent = missionPoints;
     document.getElementById('result-skill').textContent = triggeringSkill;
+    document.getElementById('result-challenge-level').textContent = currentChallenge;
     document.getElementById('final-mission-points').textContent = finalMissionPoints;
 
     if (energyShield <= 0) {
