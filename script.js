@@ -236,6 +236,20 @@ function isModalOpen() {
         !modalGameOver.classList.contains('hidden');
 }
 
+function isEnterKey(e) {
+    return e.key === 'Enter' || e.code === 'Enter' || e.keyCode === 13;
+}
+
+function proceedChallengeClear() {
+    modalChallengeClear.classList.add('hidden');
+    nextChallenge();
+}
+
+function proceedGameOver() {
+    modalGameOver.classList.add('hidden');
+    startGame();
+}
+
 function pauseGame() {
     if (isPaused) return;
     if (gameState !== 'PLAYING' && gameState !== 'BEAM_INPUT') return;
@@ -269,7 +283,7 @@ startOverlay.addEventListener('click', () => {
     if (gameState === 'START') startGame();
 });
 
-pauseOverlay.addEventListener('click', () => {
+document.getElementById('btn-resume').addEventListener('click', () => {
     resumeGame();
 });
 
@@ -282,13 +296,27 @@ document.addEventListener('visibilitychange', () => {
 });
 
 window.addEventListener('keydown', e => {
-    if (isPaused) {
-        resumeGame();
-        return;
-    }
-    if (gameState === 'START' && (e.key === 'Enter' || e.code === 'Enter' || e.keyCode === 13)) {
-        startGame();
-        return;
+    if (isEnterKey(e)) {
+        if (!modalChallengeClear.classList.contains('hidden')) {
+            e.preventDefault();
+            proceedChallengeClear();
+            return;
+        }
+        if (!modalGameOver.classList.contains('hidden')) {
+            e.preventDefault();
+            proceedGameOver();
+            return;
+        }
+        if (isPaused) {
+            e.preventDefault();
+            resumeGame();
+            return;
+        }
+        if (gameState === 'START') {
+            e.preventDefault();
+            startGame();
+            return;
+        }
     }
     if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
         keys[e.key] = true;
@@ -316,7 +344,13 @@ typeInput.addEventListener('input', e => {
 });
 
 typeInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
+    if (isEnterKey(e)) {
+        if (!modalChallengeClear.classList.contains('hidden') ||
+            !modalGameOver.classList.contains('hidden') ||
+            isPaused) {
+            return;
+        }
+
         e.preventDefault();
 
         if (gameState === 'START') {
@@ -366,15 +400,9 @@ document.getElementById('btn-save-settings').addEventListener('click', () => {
     typeInput.focus();
 });
 
-document.getElementById('btn-next-challenge').addEventListener('click', () => {
-    modalChallengeClear.classList.add('hidden');
-    nextChallenge();
-});
+document.getElementById('btn-next-challenge').addEventListener('click', proceedChallengeClear);
 
-document.getElementById('btn-restart').addEventListener('click', () => {
-    modalGameOver.classList.add('hidden');
-    startGame();
-});
+document.getElementById('btn-restart').addEventListener('click', proceedGameOver);
 
 function processTyping(text) {
     let hit = false;

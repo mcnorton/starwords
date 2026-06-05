@@ -58,7 +58,8 @@
             </div>
             <div id="pause-overlay" class="overlay hidden">
                 <h1>PAUSED</h1>
-                <p>Press any key or Click to Resume</p>
+                <p>Press [ENTER] or click Resume</p>
+                <button id="btn-resume">Resume</button>
             </div>
         </main>
         
@@ -83,6 +84,7 @@
         <p>Power Beam Fired: <span id="clear-beams">0</span> x 1000</p>
         <p>Mission Points: <span id="clear-mission-points">0</span></p>
         <button id="btn-next-challenge">Next Challenge</button>
+        <p class="modal-hint">Press [ENTER] or click button to continue</p>
     </div>
 
     <div id="modal-game-over" class="modal hidden">
@@ -93,6 +95,7 @@
         <h3>TOP 10</h3>
         <ul id="scoreboard-list"></ul>
         <button id="btn-restart">Restart</button>
+        <p class="modal-hint">Press [ENTER] or click button to continue</p>
     </div>
 
     <div id="modal-settings" class="modal hidden">

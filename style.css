@@ -288,6 +288,23 @@ canvas {
     letter-spacing: 0.5px;
 }
 
+.overlay button {
+    margin-top: 20px;
+    padding: 10px 24px;
+    background: transparent;
+    border: 1px solid var(--frame-bright);
+    color: var(--text-primary);
+    font-family: var(--font-pixel);
+    font-size: 10px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.overlay button:hover {
+    background: var(--frame-bright);
+    color: #000;
+}
+
 /* ── Console ── */
 #console {
     height: 90px;
@@ -442,6 +459,13 @@ canvas {
     font-family: var(--font-pixel);
     color: var(--text-mission-points);
     font-size: 12px;
+}
+
+.modal-hint {
+    margin-top: 12px !important;
+    font-size: 11px !important;
+    color: var(--text-dim);
+    opacity: 0.8;
 }
 
 .modal label {
