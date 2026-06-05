@@ -237,11 +237,18 @@ function resizeCanvasToContainer() {
 window.addEventListener('resize', resizeCanvasToContainer);
 resizeCanvasToContainer();
 
+function isSettingsOpen() {
+    return !modalSettings.classList.contains('hidden');
+}
+
 function isModalOpen() {
-    return !modalSettings.classList.contains('hidden') ||
+    return isSettingsOpen() ||
         !modalChallengeClear.classList.contains('hidden') ||
         !modalGameOver.classList.contains('hidden');
 }
+
+let wasPausedBeforeSettings = false;
+let settingsPausedGame = false;
 
 function isEnterKey(e) {
     return e.key === 'Enter' || e.code === 'Enter' || e.keyCode === 13;
@@ -320,6 +327,20 @@ document.addEventListener('visibilitychange', () => {
 });
 
 window.addEventListener('keydown', e => {
+    if (isSettingsOpen()) {
+        if (isEnterKey(e)) {
+            e.preventDefault();
+            saveSettings();
+            return;
+        }
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            closeSettingsWithoutSave();
+            return;
+        }
+        return;
+    }
+
     if (isEnterKey(e)) {
         if (!modalChallengeClear.classList.contains('hidden')) {
             e.preventDefault();
@@ -376,7 +397,8 @@ typeInput.addEventListener('keydown', e => {
     }
 
     if (isEnterKey(e)) {
-        if (!modalChallengeClear.classList.contains('hidden') ||
+        if (isSettingsOpen() ||
+            !modalChallengeClear.classList.contains('hidden') ||
             !modalGameOver.classList.contains('hidden') ||
             isPaused) {
             return;
@@ -414,11 +436,46 @@ typeInput.addEventListener('keydown', e => {
     }
 });
 
-document.getElementById('btn-settings').addEventListener('click', () => {
-    modalSettings.classList.remove('hidden');
-});
+function openSettings() {
+    wasPausedBeforeSettings = isPaused;
+    settingsPausedGame = (gameState === 'PLAYING' || gameState === 'BEAM_INPUT') && !isPaused;
+    if (settingsPausedGame) {
+        isPaused = true;
+        pauseStartTime = Date.now();
+    }
 
-document.getElementById('btn-save-settings').addEventListener('click', () => {
+    document.getElementById('setting-name').value = settings.name;
+    document.getElementById('setting-lang').value = settings.lang;
+    disableTypeInput();
+    modalSettings.classList.remove('hidden');
+    document.getElementById('setting-name').focus();
+}
+
+function resumeAfterSettings() {
+    if (settingsPausedGame && !wasPausedBeforeSettings) {
+        const paused = Date.now() - pauseStartTime;
+        lastTime = Date.now();
+        if (currentTypingStartTime) {
+            currentTypingStartTime += paused;
+        }
+        isPaused = false;
+    }
+    settingsPausedGame = false;
+    wasPausedBeforeSettings = false;
+
+    if (gameState === 'PLAYING' || gameState === 'BEAM_INPUT' || gameState === 'START') {
+        focusTypeInput();
+    }
+}
+
+function closeSettingsWithoutSave() {
+    document.getElementById('setting-name').value = settings.name;
+    document.getElementById('setting-lang').value = settings.lang;
+    modalSettings.classList.add('hidden');
+    resumeAfterSettings();
+}
+
+function saveSettings() {
     const rawName = document.getElementById('setting-name').value;
     const rawLang = document.getElementById('setting-lang').value;
 
@@ -432,8 +489,12 @@ document.getElementById('btn-save-settings').addEventListener('click', () => {
     localStorage.setItem('starwords_settings', JSON.stringify(settings));
     updateLanguage();
     modalSettings.classList.add('hidden');
-    focusTypeInput();
-});
+    resumeAfterSettings();
+}
+
+document.getElementById('btn-settings').addEventListener('click', openSettings);
+document.getElementById('btn-close-settings').addEventListener('click', closeSettingsWithoutSave);
+document.getElementById('btn-save-settings').addEventListener('click', saveSettings);
 
 document.getElementById('btn-next-challenge').addEventListener('click', proceedChallengeClear);
 
@@ -968,7 +1029,7 @@ function updateEndingSequence(dt) {
 }
 
 function gameLoop() {
-    if (isPaused) {
+    if (isPaused || isSettingsOpen()) {
         requestAnimationFrame(gameLoop);
         return;
     }

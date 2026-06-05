@@ -144,20 +144,22 @@ body {
 }
 
 .settings-icon {
-    font-size: 16px;
-    color: var(--text-dim);
+    font-size: 32px;
+    color: #ff3333;
     cursor: pointer;
     padding: 4px 6px;
-    transition: color 0.2s;
+    transition: color 0.2s, text-shadow 0.2s;
     font-family: var(--font-pixel);
     display: flex;
     align-items: center;
     justify-content: center;
     align-self: center;
+    line-height: 1;
 }
 
 .settings-icon:hover {
-    color: var(--text-primary);
+    color: #ff6666;
+    text-shadow: 0 0 8px rgba(255, 51, 51, 0.6);
 }
 
 /* ── Game Area & Cockpit Frame ── */
@@ -440,6 +442,101 @@ canvas {
     min-width: 320px;
 }
 
+.modal-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    box-sizing: border-box;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    color: var(--text-dim);
+    font-family: "Segoe UI Symbol", "Apple Symbols", system-ui, sans-serif;
+    font-size: 26px;
+    font-weight: 400;
+    line-height: 1;
+    letter-spacing: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: color 0.2s, text-shadow 0.2s, transform 0.15s;
+}
+
+.modal .modal-close:hover {
+    background: transparent;
+    color: #ff6666;
+    text-shadow: 0 0 10px rgba(255, 51, 51, 0.6);
+    transform: scale(1.08);
+}
+
+#modal-settings {
+    --settings-block-gap: 20px;
+    --settings-title-gap: 12px;
+    --settings-field-gap: 16px;
+    --settings-hint-gap: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+}
+
+#modal-settings .modal-settings-header {
+    position: relative;
+    padding-bottom: var(--settings-title-gap);
+    margin-bottom: var(--settings-block-gap);
+}
+
+#modal-settings .modal-settings-header::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background: var(--frame-bright);
+}
+
+#modal-settings h2 {
+    margin: 0;
+    line-height: 1;
+    text-align: center;
+}
+
+#modal-settings .modal-settings-fields {
+    display: flex;
+    flex-direction: column;
+    gap: var(--settings-field-gap);
+    width: 100%;
+    margin-bottom: var(--settings-block-gap);
+}
+
+#modal-settings .modal-settings-footer {
+    width: 100%;
+}
+
+#modal-settings .modal-settings-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--settings-hint-gap);
+    width: 100%;
+}
+
+#modal-settings .modal-settings-actions button {
+    margin-top: 0;
+}
+
+#modal-settings .modal-settings-actions .modal-hint {
+    margin: 0 !important;
+}
+
 .modal h2 {
     font-family: var(--font-pixel);
     font-size: 16px;
@@ -489,7 +586,7 @@ canvas {
     margin-left: 8px;
 }
 
-.modal button {
+.modal button:not(.modal-close) {
     margin-top: 20px;
     padding: 10px 24px;
     background: transparent;
@@ -501,7 +598,7 @@ canvas {
     transition: background 0.2s, color 0.2s;
 }
 
-.modal button:hover {
+.modal button:not(.modal-close):hover {
     background: var(--frame-bright);
     color: #000;
 }
