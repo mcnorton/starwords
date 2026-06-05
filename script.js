@@ -1009,13 +1009,6 @@ function drawEnergyShieldBubble() {
 
     ctx.save();
 
-    ctx.globalAlpha = alpha + 0.25;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, radiusX, radiusY, 0, 0, Math.PI * 2);
-    ctx.stroke();
-
     ctx.globalAlpha = alpha;
     const grad = ctx.createRadialGradient(cx, cy, 4, cx, cy, radiusX);
     grad.addColorStop(0, 'rgba(0, 0, 0, 0)');
@@ -1025,29 +1018,6 @@ function drawEnergyShieldBubble() {
     ctx.beginPath();
     ctx.ellipse(cx, cy, radiusX, radiusY, 0, 0, Math.PI * 2);
     ctx.fill();
-
-    ctx.globalAlpha = alpha + 0.3;
-    ctx.lineWidth = 1;
-    const segments = 8;
-    for (let i = 0; i < segments; i++) {
-        const angle = (i / segments) * Math.PI * 2;
-        const innerR = Math.min(radiusX, radiusY) - 5;
-        const outerR = Math.min(radiusX, radiusY);
-        const x1 = cx + Math.cos(angle) * innerR;
-        const y1 = cy + Math.sin(angle) * innerR * (radiusY / radiusX);
-        const x2 = cx + Math.cos(angle) * outerR;
-        const y2 = cy + Math.sin(angle) * outerR * (radiusY / radiusX);
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-    }
-
-    ctx.globalAlpha = alpha + 0.35;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, radiusX - 2, radiusY - 2, 0, -Math.PI * 0.85, -Math.PI * 0.15);
-    ctx.stroke();
 
     ctx.restore();
 }
