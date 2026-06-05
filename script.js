@@ -38,6 +38,7 @@ const typeInput = document.getElementById('type-input');
 
 // Modals
 const startOverlay = document.getElementById('start-overlay');
+const pauseOverlay = document.getElementById('pause-overlay');
 const modalChallengeClear = document.getElementById('modal-challenge-clear');
 const modalGameOver = document.getElementById('modal-game-over');
 const modalSettings = document.getElementById('modal-settings');
@@ -56,6 +57,8 @@ let totalTypedChars = 0;
 let failedChars = 0;
 let startTime = 0;
 let lastTime = 0;
+let isPaused = false;
+let pauseStartTime = 0;
 let enemiesDestroyed = 0;
 let challengeEnemiesDestroyed = 0;
 let beamFires = 0;
@@ -227,6 +230,35 @@ function resizeCanvasToContainer() {
 window.addEventListener('resize', resizeCanvasToContainer);
 resizeCanvasToContainer();
 
+function isModalOpen() {
+    return !modalSettings.classList.contains('hidden') ||
+        !modalChallengeClear.classList.contains('hidden') ||
+        !modalGameOver.classList.contains('hidden');
+}
+
+function pauseGame() {
+    if (isPaused) return;
+    if (gameState !== 'PLAYING' && gameState !== 'BEAM_INPUT') return;
+    if (isModalOpen()) return;
+
+    isPaused = true;
+    pauseStartTime = Date.now();
+    pauseOverlay.classList.remove('hidden');
+}
+
+function resumeGame() {
+    if (!isPaused) return;
+
+    const paused = Date.now() - pauseStartTime;
+    lastTime = Date.now();
+    if (currentTypingStartTime) {
+        currentTypingStartTime += paused;
+    }
+    isPaused = false;
+    pauseOverlay.classList.add('hidden');
+    typeInput.focus();
+}
+
 // Input Handling
 const keys = {
     ArrowUp: false,
@@ -237,7 +269,23 @@ startOverlay.addEventListener('click', () => {
     if (gameState === 'START') startGame();
 });
 
+pauseOverlay.addEventListener('click', () => {
+    resumeGame();
+});
+
+window.addEventListener('blur', pauseGame);
+
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        pauseGame();
+    }
+});
+
 window.addEventListener('keydown', e => {
+    if (isPaused) {
+        resumeGame();
+        return;
+    }
     if (gameState === 'START' && (e.key === 'Enter' || e.code === 'Enter' || e.keyCode === 13)) {
         startGame();
         return;
@@ -494,6 +542,9 @@ function resetGame() {
     particles = [];
     clearHitMessageTimeout();
     clearMissileWarning(false);
+    isPaused = false;
+    pauseStartTime = 0;
+    pauseOverlay.classList.add('hidden');
     msg1.textContent = "다수의 적 함선 탐지. 전원 전투태세. 함포가 준비되었습니다.";
     showConsoleMsg2("목표물을 설정하십시오.");
 }
@@ -746,6 +797,11 @@ function calculateTriggeringSkill() {
 }
 
 function gameLoop() {
+    if (isPaused) {
+        requestAnimationFrame(gameLoop);
+        return;
+    }
+
     let now = Date.now();
     let dt = (now - lastTime) / 1000;
     lastTime = now;
