@@ -512,6 +512,8 @@ function nextChallenge() {
 function resetHudScores() {
     uiMissionPoints.textContent = '0';
     uiTriggeringSkill.textContent = '0';
+    document.getElementById('result-mission-points').textContent = '0';
+    document.getElementById('result-skill').textContent = '0';
     document.getElementById('final-mission-points').textContent = '0';
 }
 
@@ -1588,6 +1590,8 @@ function showGameOver() {
     let skillBonus = triggeringSkill * 100;
     let finalMissionPoints = missionPoints + skillBonus;
 
+    document.getElementById('result-mission-points').textContent = missionPoints;
+    document.getElementById('result-skill').textContent = triggeringSkill;
     document.getElementById('final-mission-points').textContent = finalMissionPoints;
 
     if (energyShield <= 0) {
@@ -1603,7 +1607,8 @@ function showGameOver() {
         typeof item.name === 'string' &&
         Number.isFinite(Number(item.score))
     );
-    scores.push({ name: settings.name, score: finalMissionPoints, date: new Date().toLocaleDateString() });
+    const currentEntry = { name: settings.name, score: finalMissionPoints, date: new Date().toLocaleDateString() };
+    scores.push(currentEntry);
     scores.sort((a, b) => b.score - a.score);
     scores = scores.slice(0, 10);
     localStorage.setItem('starwords_scores', JSON.stringify(scores));
@@ -1613,6 +1618,9 @@ function showGameOver() {
     scores.forEach((s, i) => {
         let li = document.createElement('li');
         li.textContent = `${i + 1}. ${s.name} - ${s.score}`;
+        if (s === currentEntry) {
+            li.classList.add('current-score');
+        }
         ul.appendChild(li);
     });
 

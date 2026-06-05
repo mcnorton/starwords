@@ -493,3 +493,12 @@ li {
     font-family: var(--font-pixel);
     font-size: 9px;
 }
+
+li.current-score {
+    color: var(--beam-cyan);
+    text-shadow:
+        0 0 6px var(--beam-blue),
+        0 0 14px var(--beam-cyan),
+        0 0 24px rgba(0, 255, 255, 0.5);
+    animation: beamCodePulse 1.2s ease-in-out infinite alternate;
+}
