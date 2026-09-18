@@ -903,8 +903,14 @@ function fireSuperPowerBeam() {
     fireQueue = [];
     fireQueueDelay = 0;
 
-    let targets = enemies.filter(isEnemyOnScreen);
-    targets.forEach(e => destroyEnemy(e));
+    // 화면 안 적은 격추, 미진입(무적) 적에게도 빔을 발사하되 90도로 튕겨낸다.
+    const onScreen = [];
+    const straddling = [];
+    for (const e of enemies) {
+        (isEnemyOnScreen(e) ? onScreen : straddling).push(e);
+    }
+    onScreen.forEach(e => destroyEnemy(e));
+    straddling.forEach(e => fireDeflectedLaser(e));
 
     gameState = 'PLAYING';
     msg1.textContent = "SUPER POWER BEAM 발사! 냉각 및 재충전을 시작합니다.";
