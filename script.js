@@ -771,11 +771,15 @@ document.getElementById('btn-next-challenge').addEventListener('click', proceedC
 
 document.getElementById('btn-restart').addEventListener('click', proceedGameOver);
 
+function isEnemyOnScreen(e) {
+    return e.x <= canvas.width - e.width / 2;
+}
+
 function processTyping(text) {
     let hit = false;
     let targets = [];
     for (let i = 0; i < enemies.length; i++) {
-        if (enemies[i].word === text) {
+        if (enemies[i].word === text && isEnemyOnScreen(enemies[i])) {
             targets.push(enemies[i]);
         }
     }
@@ -815,7 +819,7 @@ function processBeamTyping(text) {
         let hit = false;
         let targets = [];
         for (let i = 0; i < enemies.length; i++) {
-            if (enemies[i].word === text) {
+            if (enemies[i].word === text && isEnemyOnScreen(enemies[i])) {
                 targets.push(enemies[i]);
             }
         }
@@ -860,7 +864,7 @@ function fireSuperPowerBeam() {
     fireQueue = [];
     fireQueueDelay = 0;
 
-    let targets = [...enemies];
+    let targets = enemies.filter(isEnemyOnScreen);
     targets.forEach(e => destroyEnemy(e));
 
     gameState = 'PLAYING';
