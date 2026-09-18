@@ -260,7 +260,7 @@ const LANE_MIN_HEIGHT = 76;          // 레인 최소 높이 (함선 + 낱말 �
 const LANE_MAX_COUNT = 8;
 const ENEMY_VERTICAL_FOOTPRINT = 60; // 함선과 낱말이 함께 차지하는 세로 크기
 const SPAWN_COLUMN_SPACING = 150;    // 같은 레인 안 출현 지점 사이의 가로 간격
-const SPAWN_COLUMN_OFFSET = 60;      // 화면 오른쪽 끝에서 첫 출현 지점까지의 거리
+const SPAWN_ENTRY_SECONDS = 1;       // 출현 지점을 떠나 화면에 들어오기까지 걸리는 시간
 
 let spawnLanes = [];                 // [{ y, speed }]
 let laneHeight = 0;
@@ -289,8 +289,11 @@ function initSpawnLanes(preserveSpeeds = false) {
     }
 }
 
-function spawnSlotX(column) {
-    return canvas.width + SPAWN_COLUMN_OFFSET + column * SPAWN_COLUMN_SPACING;
+// 첫 번째 열은 함선 몸통을 화면 밖에 두고 레인 속도에 비례한 거리를 더해,
+// 레인 속도나 함선 크기와 무관하게 항상 SPAWN_ENTRY_SECONDS 뒤에 화면에 들어오게 합니다.
+function spawnSlotX(column, laneSpeed, shipHalfWidth) {
+    const entryDistance = shipHalfWidth + laneSpeed * SPAWN_ENTRY_SECONDS;
+    return canvas.width + entryDistance + column * SPAWN_COLUMN_SPACING;
 }
 
 function laneSpeedFor(enemy) {
@@ -299,37 +302,54 @@ function laneSpeedFor(enemy) {
 }
 
 // 비어 있는 출현 슬롯 중 하나를 무작위로 반환합니다.
-// 모든 슬롯이 사용 중이면 앞선 함선과 가장 멀리 떨어진 슬롯을 씁니다.
-function pickSpawnSlot() {
+// 화면에 가까운 열부터 차례로 확인하므로, 격추 직후 다음 함선이 오래 기다리지 않습니다.
+// 먼 열은 가까운 열이 모두 막혔을 때(= 동시 등장 수가 많을 때)만 사용합니다.
+function pickSpawnSlot(shipHalfWidth) {
     if (spawnLanes.length === 0) initSpawnLanes();
 
-    const free = [];
-    let fallback = null;
-    let fallbackGap = -Infinity;
+    for (let col = 0; col < spawnColumnCount; col++) {
+        const free = [];
 
-    for (let lane = 0; lane < spawnLanes.length; lane++) {
-        for (let col = 0; col < spawnColumnCount; col++) {
-            const x = spawnSlotX(col);
-
-            let gap = Infinity;
-            for (const e of enemies) {
-                if (e.laneIndex !== lane) continue;
-                gap = Math.min(gap, Math.abs(e.x - x));
-            }
-
-            if (gap >= SPAWN_COLUMN_SPACING) {
+        for (let lane = 0; lane < spawnLanes.length; lane++) {
+            const x = spawnSlotX(col, spawnLanes[lane].speed, shipHalfWidth);
+            if (laneClearanceAt(lane, x) >= SPAWN_COLUMN_SPACING) {
                 free.push({ laneIndex: lane, x: x });
-            } else if (gap > fallbackGap) {
-                fallbackGap = gap;
-                fallback = { laneIndex: lane, x: x };
             }
+        }
+
+        if (free.length > 0) {
+            return free[Math.floor(Math.random() * free.length)];
         }
     }
 
-    if (free.length > 0) {
-        return free[Math.floor(Math.random() * free.length)];
+    // 모든 열이 막힌 경우(격추 속도가 슬롯이 비는 속도보다 빠를 때)에도 겹치게 두지 않고,
+    // 각 레인의 맨 뒤에 한 칸 간격을 두고 붙입니다. 그중 화면에 가장 빨리 닿는 레인을 고릅니다.
+    let best = null;
+    for (let lane = 0; lane < spawnLanes.length; lane++) {
+        let rightmost = -Infinity;
+        for (const e of enemies) {
+            if (e.laneIndex === lane) rightmost = Math.max(rightmost, e.x);
+        }
+
+        const x = Math.max(
+            spawnSlotX(0, spawnLanes[lane].speed, shipHalfWidth),
+            rightmost + SPAWN_COLUMN_SPACING
+        );
+        if (!best || x < best.x) {
+            best = { laneIndex: lane, x: x };
+        }
     }
-    return fallback || { laneIndex: 0, x: spawnSlotX(0) };
+    return best;
+}
+
+// 해당 레인에서 주어진 가로 위치와 가장 가까운 함선까지의 거리입니다.
+function laneClearanceAt(laneIndex, x) {
+    let gap = Infinity;
+    for (const e of enemies) {
+        if (e.laneIndex !== laneIndex) continue;
+        gap = Math.min(gap, Math.abs(e.x - x));
+    }
+    return gap;
 }
 
 // 함선을 지정한 레인에 앉힙니다. (세로 위치와 속도만 조정하고 가로 위치는 건드리지 않습니다.)
@@ -357,7 +377,7 @@ function placeEnemyInLane(e, laneIndex) {
 
 // 화면 왼쪽으로 빠져나간 함선을 비어 있는 출현 슬롯으로 되돌립니다.
 function moveEnemyToSpawnSlot(e) {
-    const slot = pickSpawnSlot();
+    const slot = pickSpawnSlot(e.width / 2);
     if (e.enemyType === 1) {
         e.waveTimer = Math.random() * Math.PI * 2;
     }
@@ -1097,7 +1117,7 @@ function createNewEnemy() {
     else if (type === 3 || type === 'line') { eWidth = 60; eHeight = 45; }
 
     // 미리 배치해 둔 출현 슬롯 중 비어 있는 곳에서 무작위로 등장시킵니다.
-    const slot = pickSpawnSlot();
+    const slot = pickSpawnSlot(eWidth / 2);
     const lane = spawnLanes[slot.laneIndex];
     let speed = lane.speed;
 
