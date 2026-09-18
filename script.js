@@ -233,6 +233,23 @@ let fireQueue = [];
 let fireQueueDelay = 0;
 const CANNON_FIRE_INTERVAL = 0.4;
 const END_SCREEN_DELAY = 2;
+
+// ── 난이도 밸런스 상수 ──
+// 적 함선 이동 속도 (원래 30~50 px/s 에서 두 차례 30% 감속)
+const ENEMY_SPEED_MIN = 14.7;
+const ENEMY_SPEED_RANGE = 9.8;
+// 적 미사일 이동 속도 (원래 150 px/s 에서 두 차례 30% 감속)
+const MISSILE_SPEED = 73.5;
+// 스타디스트로이어 레이저 탄의 뻗어나가는 속도 (원래 600 px/s 에서 두 차례 30% 감속)
+const MISSILE_LINE_GROW_SPEED = 294;
+// 레이저 함선이 조준(warning)하는 시간 (원래 1.5초에서 두 차례 30% 증가 후 2배)
+const LASER_WARNING_DURATION = 5.07;
+// 적 함선 위에 표시되는 낱말의 글자 크기 (기본 14px 에서 20% 확대)
+const ENEMY_WORD_FONT_SIZE = 16.8;
+
+function randomEnemySpeed() {
+    return Math.random() * ENEMY_SPEED_RANGE + ENEMY_SPEED_MIN;
+}
 let pendingChallengeClear = false;
 let pendingGameOver = false;
 let endScreenDelay = 0;
@@ -923,7 +940,7 @@ function createNewEnemy() {
     else if (type === 2) { eWidth = 45; eHeight = 35; }
     else if (type === 3 || type === 'line') { eWidth = 60; eHeight = 45; }
 
-    let speed = Math.random() * 20 + 30;
+    let speed = randomEnemySpeed();
     let initialY = Math.random() * (canvas.height - 60) + 30;
 
     let enemyObj = {
@@ -1217,7 +1234,7 @@ function update(dt) {
                     e.laserTimer -= dt;
                     if (e.laserTimer <= 0) {
                         e.laserState = 'warning';
-                        e.laserTimer = 1.5;
+                        e.laserTimer = LASER_WARNING_DURATION;
                         e.savedSpeed = e.speed;
                         e.speed = 0;
 
@@ -1291,14 +1308,14 @@ function update(dt) {
                 if (e.laserTimer <= 0) {
                     e.laserState = 'cooldown';
                     e.laserTimer = 5.0;
-                    e.speed = e.savedSpeed || (Math.random() * 20 + 30);
+                    e.speed = e.savedSpeed || randomEnemySpeed();
                 }
             } else if (e.laserState === 'cooldown') {
                 e.x -= e.speed * dt;
                 e.laserTimer -= dt;
                 if (e.laserTimer <= 0) {
                     e.laserState = 'warning';
-                    e.laserTimer = 1.5;
+                    e.laserTimer = LASER_WARNING_DURATION;
                     e.savedSpeed = e.speed;
                     e.speed = 0;
 
@@ -1395,7 +1412,7 @@ function update(dt) {
         }
 
         if (m.shape === 'line' && m.currentLength < m.maxLength) {
-            let growSpeed = 600;
+            let growSpeed = MISSILE_LINE_GROW_SPEED;
             m.currentLength += growSpeed * dt;
             if (m.currentLength > m.maxLength) {
                 m.currentLength = m.maxLength;
@@ -1468,7 +1485,7 @@ function fireEnemyMissiles(enemy) {
             x: enemy.x - enemy.width / 2,
             y: enemy.y,
             source: enemy,
-            speed: 150,
+            speed: MISSILE_SPEED,
             delay: j * 0.5,
             dirX: dirX,
             dirY: dirY,
@@ -1791,7 +1808,7 @@ function draw() {
                 let ay = e.y;
                 let bx = e.laserTargetX;
                 let by = e.laserTargetY;
-                let progress = 1.0 - (e.laserTimer / 1.5);
+                let progress = 1.0 - (e.laserTimer / LASER_WARNING_DURATION);
 
                 ctx.save();
                 ctx.strokeStyle = `rgba(255, 0, 0, ${progress * 0.8 + 0.2})`;
@@ -1855,7 +1872,7 @@ function draw() {
 
         if (e.word !== "") {
             ctx.fillStyle = '#fff';
-            ctx.font = '14px "Noto Sans KR"';
+            ctx.font = `${ENEMY_WORD_FONT_SIZE}px "Noto Sans KR"`;
             ctx.textAlign = 'center';
             ctx.fillText(e.word, e.x, e.y - 20);
         }
