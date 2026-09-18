@@ -74,7 +74,6 @@ let missionPoints = 0;
 let beamTargetCode = "";
 let totalTypingTime = 0;
 let currentTypingStartTime = null;
-let lastStageSkill = null; // 직전 스테이지(챌린지)의 Trigger Skill 값
 
 // Settings
 let settings = {
@@ -826,8 +825,9 @@ function processTyping(text) {
 
     if (onScreen.length > 0) {
         // 정상 명중: 함포 발사 후 격추, 빔 충전
+        const strokes = keystrokeCount(text);
         onScreen.forEach(() => {
-            totalTypedChars += text.length;
+            totalTypedChars += strokes;
         });
         enqueueCannonFire(onScreen);
         showHitMessage(onScreen[0].word);
@@ -841,7 +841,7 @@ function processTyping(text) {
     } else {
         // 매칭 없음: 미스 처리
         clearHitMessageTimeout();
-        failedChars += text.length;
+        failedChars += keystrokeCount(text);
         beamCharge = Math.max(0, beamCharge - 10);
         updateBeamCharge();
         msg1.textContent = "목표를 찾을 수 없습니다.";
@@ -855,15 +855,16 @@ function processTyping(text) {
 
 function processBeamTyping(text) {
     if (text === beamTargetCode) {
-        totalTypedChars += text.length;
+        totalTypedChars += keystrokeCount(text);
         fireSuperPowerBeam();
     } else {
         msg1.classList.remove('attack-missed');
         const { onScreen, straddling } = resolveTypingTargets(text);
 
         if (onScreen.length > 0) {
+            const strokes = keystrokeCount(text);
             onScreen.forEach(() => {
-                totalTypedChars += text.length;
+                totalTypedChars += strokes;
             });
             enqueueCannonFire(onScreen);
         } else if (straddling.length > 0) {
@@ -871,7 +872,7 @@ function processBeamTyping(text) {
             straddling.forEach(e => fireDeflectedLaser(e));
             showAttackMissedMessage();
         } else {
-            failedChars += text.length;
+            failedChars += keystrokeCount(text);
             beamCharge = Math.max(0, beamCharge - 10);
             updateBeamCharge();
             gameState = 'PLAYING';
@@ -996,13 +997,7 @@ function nextChallenge() {
         return;
     }
 
-    // 다음 스테이지로 진행: 직전 스테이지의 Trigger Skill 값을 저장하고 타자 통계를 스테이지 단위로 초기화한다.
-    lastStageSkill = currentStageSkill();
-    totalTypedChars = 0;
-    failedChars = 0;
-    totalTypingTime = 0;
-    currentTypingStartTime = null;
-
+    // 타자 통계(totalTypedChars / failedChars / totalTypingTime)는 게임 전체 누적이므로 초기화하지 않는다.
     challengeEnemiesDestroyed = 0;
     challengeBeamFires = 0;
     energyShield = 100;
@@ -1038,6 +1033,7 @@ function resetHudScores() {
     document.getElementById('result-mission-points').textContent = '0';
     document.getElementById('result-skill').textContent = '0';
     document.getElementById('final-mission-points').textContent = '0';
+    document.getElementById('result-kpm').textContent = '0';
 }
 
 function resetGame() {
@@ -1055,7 +1051,6 @@ function resetGame() {
     failedChars = 0;
     totalTypingTime = 0;
     currentTypingStartTime = null;
-    lastStageSkill = null;
     startTime = 0;
     typeInput.value = '';
     uiChallenge.textContent = currentChallenge;
@@ -1328,7 +1323,31 @@ function drawEnergyShieldBubble() {
     ctx.restore();
 }
 
-// 현재 스테이지(챌린지)에서의 타자 기록만으로 계산한 Trigger Skill 원값
+// 두벌식 필요 타수. 한글 음절은 초·중·종성 키 수, 영문 등은 글자당 1타.
+// 쌍자음(ㄲ 등)=1타, 복합모음·겹받침=2타. Shift는 세지 않는다.
+const JUNG_STROKES = [1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2, 1, 1, 1];
+const JONG_STROKES = [
+    0, 1, 1, 2, 1, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
+];
+
+function keystrokeCount(text) {
+    let n = 0;
+    for (const ch of text) {
+        if (ch === '\n' || ch === '\r') continue;
+        const c = ch.codePointAt(0);
+        if (c >= 0xAC00 && c <= 0xD7A3) {
+            const s = c - 0xAC00;
+            n += 1; // 초성 (쌍자음 포함 1타)
+            n += JUNG_STROKES[Math.floor((s % 588) / 28)];
+            n += JONG_STROKES[s % 28];
+        } else {
+            n += 1;
+        }
+    }
+    return n;
+}
+
+// 게임 시작부터의 누적 유효 타수 / 실제 입력 시간 → 분당 타수
 function currentStageSkill() {
     let currentSessionTime = 0;
     if (currentTypingStartTime) {
@@ -1344,12 +1363,8 @@ function currentStageSkill() {
     return Math.max(0, Math.floor((effectiveChars / totalSeconds) * 60));
 }
 
-// Level 1 부터 누적 평균하지 않고, 현재 스테이지 값과 '바로 이전 스테이지 값'의 평균으로 기록한다.
 function calculateTriggeringSkill() {
-    const stageSkill = currentStageSkill();
-    const skill = (lastStageSkill === null)
-        ? stageSkill
-        : Math.round((stageSkill + lastStageSkill) / 2);
+    const skill = currentStageSkill();
     uiTriggeringSkill.textContent = skill;
     return skill;
 }
@@ -2204,6 +2219,7 @@ function showGameOver() {
     document.getElementById('result-skill').textContent = triggeringSkill;
     document.getElementById('result-challenge-level').textContent = currentChallenge;
     document.getElementById('final-mission-points').textContent = finalMissionPoints;
+    document.getElementById('result-kpm').textContent = triggeringSkill;
 
     let scores = readJsonFromLocalStorage('starwords_scores', []);
     if (!Array.isArray(scores)) {
@@ -2224,7 +2240,14 @@ function showGameOver() {
     ul.innerHTML = '';
     scores.forEach((s, i) => {
         let li = document.createElement('li');
-        li.textContent = `${i + 1}. ${s.name} - ${s.score}`;
+        const nameEl = document.createElement('span');
+        nameEl.className = 'rank-name';
+        nameEl.textContent = `${i + 1}. ${s.name}`;
+        const scoreEl = document.createElement('span');
+        scoreEl.className = 'rank-score';
+        scoreEl.textContent = String(s.score);
+        li.appendChild(nameEl);
+        li.appendChild(scoreEl);
         if (s === currentEntry) {
             li.classList.add('current-score');
         }

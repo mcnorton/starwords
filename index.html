@@ -90,11 +90,30 @@
 
     <div id="modal-game-over" class="modal hidden">
         <h2>GAME OVER</h2>
-        <p>Mission Points: <span id="result-mission-points">0</span></p>
-        <p>Skill Bonus: <span id="result-skill">0</span> x <span id="result-challenge-level">1</span></p>
-        <p>Final Score: <span id="final-mission-points">0</span></p>
-        <h3>TOP 10</h3>
-        <ul id="scoreboard-list"></ul>
+        <div class="game-over-scores">
+            <div class="score-row">
+                <span class="score-label">Mission Points</span>
+                <span class="score-value" id="result-mission-points">0</span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Skill Bonus</span>
+                <span class="score-value"><span id="result-skill">0</span> x <span id="result-challenge-level">1</span></span>
+            </div>
+            <div class="score-highlights">
+                <div class="score-box">
+                    <span class="score-label">Final Score</span>
+                    <span class="score-value" id="final-mission-points">0</span>
+                </div>
+                <div class="score-box">
+                    <span class="score-label">Keys/Min</span>
+                    <span class="score-value" id="result-kpm">0</span>
+                </div>
+            </div>
+        </div>
+        <div class="game-over-ranking">
+            <h3>TOP 10</h3>
+            <ul id="scoreboard-list"></ul>
+        </div>
         <button id="btn-restart">Restart</button>
         <p class="modal-hint">Press [ENTER] or click button to continue</p>
     </div>
