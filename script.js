@@ -248,6 +248,8 @@ let missiles = [];
 let lasers = [];
 let fireQueue = [];
 let fireQueueDelay = 0;
+let asteroids = [];
+let asteroidsSpawnedThisChallenge = false;
 const CANNON_FIRE_INTERVAL = 0.4;
 const END_SCREEN_DELAY = 2;
 
@@ -276,6 +278,10 @@ function enemySpeedFor(type, laneSpeed) {
     const multiplier = ENEMY_SPEED_MULTIPLIER[type] || 1;
     return laneSpeed * multiplier;
 }
+
+// 운석 비행 속도 5단계 (레이저 함선보다 느린 끝 ~ H윙보다 빠른 끝)
+const ASTEROID_SPEED_TIERS = [10, 28, 46, 64, 82];
+const ASTEROID_COLUMN_SPACING = 55;
 
 // 챌린지(레벨)별 등장 적 함선 수: 10, 12, 14, 16 ...
 function enemyCountForChallenge(challenge) {
@@ -1015,6 +1021,8 @@ function nextChallenge() {
     fireQueue = [];
     fireQueueDelay = 0;
     particles = [];
+    asteroids = [];
+    asteroidsSpawnedThisChallenge = false;
     refreshWordPool();
     initSpawnLanes();
     spawnEnemies();
@@ -1069,6 +1077,8 @@ function resetGame() {
     fireQueue = [];
     fireQueueDelay = 0;
     particles = [];
+    asteroids = [];
+    asteroidsSpawnedThisChallenge = false;
     clearHitMessageTimeout();
     clearMissileWarning(false);
     isPaused = false;
@@ -1222,6 +1232,110 @@ function createNewEnemy() {
     }
 
     enemies.push(enemyObj);
+}
+
+// ── 회색 운석 (파괴·타자 불가) ──
+function maybeSpawnAsteroids() {
+    if (asteroidsSpawnedThisChallenge) return;
+    if (gameState !== 'PLAYING' && gameState !== 'BEAM_INPUT') return;
+
+    const T = enemyCountForChallenge(currentChallenge);
+    const remaining = T - challengeEnemiesDestroyed;
+    if (remaining <= (2 * T) / 3 && remaining >= T / 2) {
+        spawnAsteroidWave(currentChallenge);
+        asteroidsSpawnedThisChallenge = true;
+    }
+}
+
+function spawnAsteroidWave(count) {
+    const yMin = canvas.height / 3;
+    const yMax = (canvas.height * 2) / 3;
+    const startX = canvas.width + 40;
+
+    for (let i = 0; i < count; i++) {
+        const radius = 14 + Math.random() * 12;
+        let y;
+        if (count === 1) {
+            y = yMin + Math.random() * (yMax - yMin);
+        } else {
+            y = yMin + (i / (count - 1)) * (yMax - yMin);
+            y += (Math.random() - 0.5) * 24;
+            y = Math.max(yMin, Math.min(yMax, y));
+        }
+
+        const sides = 7 + Math.floor(Math.random() * 3);
+        const verts = [];
+        for (let v = 0; v < sides; v++) {
+            const ang = (v / sides) * Math.PI * 2;
+            const r = radius * (0.7 + Math.random() * 0.35);
+            verts.push({ x: Math.cos(ang) * r, y: Math.sin(ang) * r });
+        }
+
+        const tier = Math.floor(Math.random() * ASTEROID_SPEED_TIERS.length);
+        asteroids.push({
+            x: startX + i * ASTEROID_COLUMN_SPACING,
+            y: y,
+            radius: radius,
+            speed: ASTEROID_SPEED_TIERS[tier],
+            rotation: Math.random() * Math.PI * 2,
+            spin: (Math.random() - 0.5) * 2.5,
+            verts: verts
+        });
+    }
+}
+
+function updateAsteroids(dt) {
+    const px = player.x + player.width / 2;
+    const py = player.y;
+
+    for (let i = asteroids.length - 1; i >= 0; i--) {
+        const a = asteroids[i];
+        a.x -= a.speed * dt;
+        a.rotation += a.spin * dt;
+
+        const dx = px - a.x;
+        const dy = py - a.y;
+        if (Math.sqrt(dx * dx + dy * dy) < a.radius + 14) {
+            if (player.invincibleTimer <= 0) {
+                energyShield -= 10;
+                updateEnergyShield();
+                player.invincibleTimer = 2.0;
+                createExplosion(px, py, '#888888', 40);
+            }
+        }
+
+        if (a.x < -a.radius - 20) {
+            asteroids.splice(i, 1);
+        }
+    }
+}
+
+function drawAsteroid(a) {
+    ctx.save();
+    ctx.translate(a.x, a.y);
+    ctx.rotate(a.rotation);
+
+    ctx.fillStyle = '#8a8a8a';
+    ctx.strokeStyle = '#5a5a5a';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    a.verts.forEach((v, i) => {
+        if (i === 0) ctx.moveTo(v.x, v.y);
+        else ctx.lineTo(v.x, v.y);
+    });
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#6e6e6e';
+    ctx.beginPath();
+    ctx.arc(-a.radius * 0.25, -a.radius * 0.2, a.radius * 0.22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(a.radius * 0.3, a.radius * 0.15, a.radius * 0.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
 }
 
 function createExplosion(x, y, color, count) {
@@ -1490,6 +1604,9 @@ function update(dt) {
 
     if (player.y < 20) player.y = 20;
     if (player.y > canvas.height - 20) player.y = canvas.height - 20;
+
+    maybeSpawnAsteroids();
+    updateAsteroids(dt);
 
     for (let i = enemies.length - 1; i >= 0; i--) {
         let e = enemies[i];
@@ -2131,6 +2248,8 @@ function draw() {
         }
     });
 
+    asteroids.forEach(a => drawAsteroid(a));
+
     lasers.forEach(l => {
         let alpha = 1.0;
         if (l.timer < 0) {
@@ -2202,6 +2321,7 @@ function handleChallengeClear() {
     enemies = [];
     missiles = [];
     lasers = [];
+    asteroids = [];
     fireQueue = [];
     fireQueueDelay = 0;
 
@@ -2217,6 +2337,7 @@ function handleChallengeClear() {
 function showGameOver() {
     gameState = 'GAME_OVER';
     clearMissileWarning(false);
+    asteroids = [];
     const triggeringSkill = calculateTriggeringSkill();
     let skillBonus = triggeringSkill * currentChallenge;
     let finalMissionPoints = missionPoints + skillBonus;
