@@ -74,6 +74,7 @@ let missionPoints = 0;
 let beamTargetCode = "";
 let totalTypingTime = 0;
 let currentTypingStartTime = null;
+let lastStageSkill = null; // 직전 스테이지(챌린지)의 Trigger Skill 값
 
 // Settings
 let settings = {
@@ -251,6 +252,20 @@ function randomEnemySpeed() {
     return Math.random() * ENEMY_SPEED_RANGE + ENEMY_SPEED_MIN;
 }
 
+// 함선 종류별 이동 속도 배율
+//  1: H윙(경전투기, 초록) 3배 / 2: Y윙(노랑) 2배 / 3: 기본 / 'line': 레이저 전함 30% 감속
+const ENEMY_SPEED_MULTIPLIER = { 1: 3, 2: 2, 3: 1, line: 0.7 };
+
+function enemySpeedFor(type, laneSpeed) {
+    const multiplier = ENEMY_SPEED_MULTIPLIER[type] || 1;
+    return laneSpeed * multiplier;
+}
+
+// 챌린지(레벨)별 등장 적 함선 수: 10, 12, 14, 16 ...
+function enemyCountForChallenge(challenge) {
+    return 10 + (Math.max(1, challenge) - 1) * 2;
+}
+
 // ── 적 함선 출현 슬롯 ──
 // 적 함선이 서로 겹쳐 보이지 않도록 화면을 가로 "레인"으로 나누고,
 // 각 레인의 화면 밖 오른쪽에 일정 간격의 출현 지점(슬롯)을 미리 만들어 둡니다.
@@ -298,7 +313,8 @@ function spawnSlotX(column, laneSpeed, shipHalfWidth) {
 
 function laneSpeedFor(enemy) {
     const lane = spawnLanes[enemy.laneIndex];
-    return lane ? lane.speed : randomEnemySpeed();
+    const base = lane ? lane.speed : randomEnemySpeed();
+    return enemySpeedFor(enemy.enemyType, base);
 }
 
 // 비어 있는 출현 슬롯 중 하나를 무작위로 반환합니다.
@@ -361,9 +377,10 @@ function placeEnemyInLane(e, laneIndex) {
 
     // 조준/발사 중인 레이저 함선은 멈춰 있어야 하므로 속도를 되살리지 않습니다.
     const isAiming = e.enemyType === 'line' && (e.laserState === 'warning' || e.laserState === 'firing');
-    e.savedSpeed = lane.speed;
+    const typedSpeed = enemySpeedFor(e.enemyType, lane.speed);
+    e.savedSpeed = typedSpeed;
     if (!isAiming) {
-        e.speed = lane.speed;
+        e.speed = typedSpeed;
     }
 
     if (e.enemyType === 1) {
@@ -957,6 +974,14 @@ function nextChallenge() {
         showGameOver();
         return;
     }
+
+    // 다음 스테이지로 진행: 직전 스테이지의 Trigger Skill 값을 저장하고 타자 통계를 스테이지 단위로 초기화한다.
+    lastStageSkill = currentStageSkill();
+    totalTypedChars = 0;
+    failedChars = 0;
+    totalTypingTime = 0;
+    currentTypingStartTime = null;
+
     challengeEnemiesDestroyed = 0;
     challengeBeamFires = 0;
     energyShield = 100;
@@ -1009,6 +1034,7 @@ function resetGame() {
     failedChars = 0;
     totalTypingTime = 0;
     currentTypingStartTime = null;
+    lastStageSkill = null;
     startTime = 0;
     typeInput.value = '';
     uiChallenge.textContent = currentChallenge;
@@ -1096,13 +1122,14 @@ function destroyEnemy(enemy) {
 
         missiles = missiles.filter(m => m.source !== enemy);
 
-        if (challengeEnemiesDestroyed + enemies.length < currentChallenge * 10) {
+        if (challengeEnemiesDestroyed + enemies.length < enemyCountForChallenge(currentChallenge)) {
             createNewEnemy();
         }
     }
 }
 
 function spawnEnemies() {
+    // 화면 동시 등장 수 = 레벨(챌린지) 수. (총 격추목표는 enemyCountForChallenge 로 별도 관리)
     let count = currentChallenge;
     for (let i = 0; i < count; i++) {
         createNewEnemy();
@@ -1123,7 +1150,7 @@ function createNewEnemy() {
     // 미리 배치해 둔 출현 슬롯 중 비어 있는 곳에서 무작위로 등장시킵니다.
     const slot = pickSpawnSlot(eWidth / 2);
     const lane = spawnLanes[slot.laneIndex];
-    let speed = lane.speed;
+    let speed = enemySpeedFor(type, lane.speed);
 
     let enemyObj = {
         x: slot.x,
@@ -1265,21 +1292,28 @@ function drawEnergyShieldBubble() {
     ctx.restore();
 }
 
-function calculateTriggeringSkill() {
+// 현재 스테이지(챌린지)에서의 타자 기록만으로 계산한 Trigger Skill 원값
+function currentStageSkill() {
     let currentSessionTime = 0;
     if (currentTypingStartTime) {
         currentSessionTime = (Date.now() - currentTypingStartTime) / 1000;
     }
 
     let totalSeconds = totalTypingTime + currentSessionTime;
-
     if (totalSeconds <= 0) {
-        uiTriggeringSkill.textContent = 0;
         return 0;
     }
 
     let effectiveChars = totalTypedChars - failedChars;
-    let skill = Math.max(0, Math.floor((effectiveChars / totalSeconds) * 60));
+    return Math.max(0, Math.floor((effectiveChars / totalSeconds) * 60));
+}
+
+// Level 1 부터 누적 평균하지 않고, 현재 스테이지 값과 '바로 이전 스테이지 값'의 평균으로 기록한다.
+function calculateTriggeringSkill() {
+    const stageSkill = currentStageSkill();
+    const skill = (lastStageSkill === null)
+        ? stageSkill
+        : Math.round((stageSkill + lastStageSkill) / 2);
     uiTriggeringSkill.textContent = skill;
     return skill;
 }
@@ -1373,7 +1407,7 @@ function gameLoop() {
         } else {
             update(dt);
 
-            if (challengeEnemiesDestroyed >= currentChallenge * 10) {
+            if (challengeEnemiesDestroyed >= enemyCountForChallenge(currentChallenge)) {
                 scheduleChallengeClear();
             } else if (energyShield <= 0) {
                 scheduleGameOver();
