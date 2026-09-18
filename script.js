@@ -250,6 +250,156 @@ const ENEMY_WORD_FONT_SIZE = 16.8;
 function randomEnemySpeed() {
     return Math.random() * ENEMY_SPEED_RANGE + ENEMY_SPEED_MIN;
 }
+
+// ── 적 함선 출현 슬롯 ──
+// 적 함선이 서로 겹쳐 보이지 않도록 화면을 가로 "레인"으로 나누고,
+// 각 레인의 화면 밖 오른쪽에 일정 간격의 출현 지점(슬롯)을 미리 만들어 둡니다.
+// 새 함선은 비어 있는 슬롯 중 하나에서 무작위로 출현합니다.
+const LANE_EDGE_MARGIN = 30;         // 화면 위/아래 여백
+const LANE_MIN_HEIGHT = 76;          // 레인 최소 높이 (함선 + 낱말 글자 + 여유)
+const LANE_MAX_COUNT = 8;
+const ENEMY_VERTICAL_FOOTPRINT = 60; // 함선과 낱말이 함께 차지하는 세로 크기
+const SPAWN_COLUMN_SPACING = 150;    // 같은 레인 안 출현 지점 사이의 가로 간격
+const SPAWN_COLUMN_OFFSET = 60;      // 화면 오른쪽 끝에서 첫 출현 지점까지의 거리
+
+let spawnLanes = [];                 // [{ y, speed }]
+let laneHeight = 0;
+let maxWaveAmp = 0;
+let spawnColumnCount = 1;
+
+// 캔버스 크기에 맞춰 레인을 다시 계산합니다.
+// 같은 레인에 있는 함선끼리 간격이 유지되도록 속도를 레인 단위로 고정합니다.
+// (속도가 서로 다르면 앞선 함선을 따라잡아 결국 겹치게 됩니다.)
+function initSpawnLanes(preserveSpeeds = false) {
+    const previous = spawnLanes;
+    const usable = Math.max(canvas.height - LANE_EDGE_MARGIN * 2, LANE_MIN_HEIGHT);
+    const count = Math.max(1, Math.min(LANE_MAX_COUNT, Math.floor(usable / LANE_MIN_HEIGHT)));
+
+    laneHeight = usable / count;
+    maxWaveAmp = Math.max(0, (laneHeight - ENEMY_VERTICAL_FOOTPRINT) / 2);
+    spawnColumnCount = Math.max(1, Math.ceil(maxChallenge / count));
+
+    spawnLanes = [];
+    for (let i = 0; i < count; i++) {
+        const reused = preserveSpeeds && previous[i] ? previous[i].speed : randomEnemySpeed();
+        spawnLanes.push({
+            y: LANE_EDGE_MARGIN + laneHeight * (i + 0.5),
+            speed: reused
+        });
+    }
+}
+
+function spawnSlotX(column) {
+    return canvas.width + SPAWN_COLUMN_OFFSET + column * SPAWN_COLUMN_SPACING;
+}
+
+function laneSpeedFor(enemy) {
+    const lane = spawnLanes[enemy.laneIndex];
+    return lane ? lane.speed : randomEnemySpeed();
+}
+
+// 비어 있는 출현 슬롯 중 하나를 무작위로 반환합니다.
+// 모든 슬롯이 사용 중이면 앞선 함선과 가장 멀리 떨어진 슬롯을 씁니다.
+function pickSpawnSlot() {
+    if (spawnLanes.length === 0) initSpawnLanes();
+
+    const free = [];
+    let fallback = null;
+    let fallbackGap = -Infinity;
+
+    for (let lane = 0; lane < spawnLanes.length; lane++) {
+        for (let col = 0; col < spawnColumnCount; col++) {
+            const x = spawnSlotX(col);
+
+            let gap = Infinity;
+            for (const e of enemies) {
+                if (e.laneIndex !== lane) continue;
+                gap = Math.min(gap, Math.abs(e.x - x));
+            }
+
+            if (gap >= SPAWN_COLUMN_SPACING) {
+                free.push({ laneIndex: lane, x: x });
+            } else if (gap > fallbackGap) {
+                fallbackGap = gap;
+                fallback = { laneIndex: lane, x: x };
+            }
+        }
+    }
+
+    if (free.length > 0) {
+        return free[Math.floor(Math.random() * free.length)];
+    }
+    return fallback || { laneIndex: 0, x: spawnSlotX(0) };
+}
+
+// 함선을 지정한 레인에 앉힙니다. (세로 위치와 속도만 조정하고 가로 위치는 건드리지 않습니다.)
+function placeEnemyInLane(e, laneIndex) {
+    const lane = spawnLanes[laneIndex];
+    if (!lane) return;
+
+    e.laneIndex = laneIndex;
+
+    // 조준/발사 중인 레이저 함선은 멈춰 있어야 하므로 속도를 되살리지 않습니다.
+    const isAiming = e.enemyType === 'line' && (e.laserState === 'warning' || e.laserState === 'firing');
+    e.savedSpeed = lane.speed;
+    if (!isAiming) {
+        e.speed = lane.speed;
+    }
+
+    if (e.enemyType === 1) {
+        e.baseY = lane.y;
+        e.waveAmp = Math.min(e.waveAmp, maxWaveAmp);
+        e.y = e.baseY + Math.sin(e.waveTimer * e.waveSpeed) * e.waveAmp;
+    } else {
+        e.y = lane.y;
+    }
+}
+
+// 화면 왼쪽으로 빠져나간 함선을 비어 있는 출현 슬롯으로 되돌립니다.
+function moveEnemyToSpawnSlot(e) {
+    const slot = pickSpawnSlot();
+    if (e.enemyType === 1) {
+        e.waveTimer = Math.random() * Math.PI * 2;
+    }
+    placeEnemyInLane(e, slot.laneIndex);
+    e.x = slot.x;
+}
+
+// 창 크기가 바뀌어 레인 구성이 달라졌을 때, 떠 있는 함선들을 겹치지 않는 레인으로 다시 앉힙니다.
+// 레인 수가 줄어들면 한 레인에 여러 대가 몰릴 수 있으므로 자리를 하나씩 확인하며 배치합니다.
+function reseatEnemiesIntoLanes() {
+    if (spawnLanes.length === 0) return;
+
+    const seated = [];
+    // 오른쪽(가장 늦게 등장한 쪽)부터 자리를 잡아 화면 안쪽 함선이 밀려나지 않게 합니다.
+    const ordered = [...enemies].sort((a, b) => b.x - a.x);
+
+    for (const e of ordered) {
+        // 지금 위치에서 가장 가까운 레인부터 후보로 검사해 이동 거리를 최소화합니다.
+        const candidates = spawnLanes
+            .map((lane, index) => ({ index: index, dist: Math.abs(lane.y - e.y) }))
+            .sort((a, b) => a.dist - b.dist);
+
+        let chosen = -1;
+        for (const candidate of candidates) {
+            const conflict = seated.some(s =>
+                s.laneIndex === candidate.index && Math.abs(s.x - e.x) < SPAWN_COLUMN_SPACING
+            );
+            if (!conflict) {
+                chosen = candidate.index;
+                break;
+            }
+        }
+
+        if (chosen === -1) {
+            // 화면 안에 앉힐 자리가 없으면 화면 밖 출현 슬롯으로 되돌립니다.
+            moveEnemyToSpawnSlot(e);
+        } else {
+            placeEnemyInLane(e, chosen);
+        }
+        seated.push(e);
+    }
+}
 let pendingChallengeClear = false;
 let pendingGameOver = false;
 let endScreenDelay = 0;
@@ -288,6 +438,10 @@ function resizeCanvasToContainer() {
     });
 
     player.y = Math.max(20, Math.min(canvas.height - 20, player.y));
+
+    // 레인 위치는 다시 계산하되, 이미 떠 있는 함선이 서로 따라잡지 않도록 속도는 유지합니다.
+    initSpawnLanes(true);
+    reseatEnemiesIntoLanes();
 }
 
 window.addEventListener('resize', resizeCanvasToContainer);
@@ -764,6 +918,7 @@ function startCountdownSequence() {
 function startGame() {
     resetGame();
     refreshWordPool();
+    initSpawnLanes();
     startOverlay.classList.add('hidden');
     startTime = Date.now();
     lastTime = Date.now();
@@ -790,6 +945,7 @@ function nextChallenge() {
     fireQueueDelay = 0;
     particles = [];
     refreshWordPool();
+    initSpawnLanes();
     spawnEnemies();
 
     if (beamCharge === 100) {
@@ -940,12 +1096,15 @@ function createNewEnemy() {
     else if (type === 2) { eWidth = 45; eHeight = 35; }
     else if (type === 3 || type === 'line') { eWidth = 60; eHeight = 45; }
 
-    let speed = randomEnemySpeed();
-    let initialY = Math.random() * (canvas.height - 60) + 30;
+    // 미리 배치해 둔 출현 슬롯 중 비어 있는 곳에서 무작위로 등장시킵니다.
+    const slot = pickSpawnSlot();
+    const lane = spawnLanes[slot.laneIndex];
+    let speed = lane.speed;
 
     let enemyObj = {
-        x: canvas.width + Math.random() * 200,
-        y: initialY,
+        x: slot.x,
+        y: lane.y,
+        laneIndex: slot.laneIndex,
         width: eWidth,
         height: eHeight,
         speed: speed,
@@ -955,16 +1114,9 @@ function createNewEnemy() {
 
     if (type === 1) {
         enemyObj.waveSpeed = (Math.random() * 2 + 2) / 5;
-        enemyObj.waveAmp = (Math.random() * 50 + 50) / 2;
-
-        let minBaseY = 30 + enemyObj.waveAmp;
-        let maxBaseY = canvas.height - 30 - enemyObj.waveAmp;
-        if (maxBaseY < minBaseY) {
-            enemyObj.waveAmp = (canvas.height - 60) / 4;
-            minBaseY = 30 + enemyObj.waveAmp;
-            maxBaseY = canvas.height - 30 - enemyObj.waveAmp;
-        }
-        enemyObj.baseY = Math.random() * (maxBaseY - minBaseY) + minBaseY;
+        // 상하로 흔들려도 자기 레인을 벗어나지 않도록 진폭을 제한합니다.
+        enemyObj.waveAmp = Math.min((Math.random() * 50 + 50) / 2, maxWaveAmp);
+        enemyObj.baseY = lane.y;
         enemyObj.waveTimer = Math.random() * Math.PI * 2;
         enemyObj.y = enemyObj.baseY + Math.sin(enemyObj.waveTimer * enemyObj.waveSpeed) * enemyObj.waveAmp;
         enemyObj.missileTimer = Math.random() * 7;
@@ -1308,7 +1460,7 @@ function update(dt) {
                 if (e.laserTimer <= 0) {
                     e.laserState = 'cooldown';
                     e.laserTimer = 5.0;
-                    e.speed = e.savedSpeed || randomEnemySpeed();
+                    e.speed = e.savedSpeed || laneSpeedFor(e);
                 }
             } else if (e.laserState === 'cooldown') {
                 e.x -= e.speed * dt;
@@ -1335,8 +1487,7 @@ function update(dt) {
             }
 
             if (e.x < -e.width) {
-                e.x = canvas.width + 50;
-                e.y = Math.random() * (canvas.height - 60) + 30;
+                moveEnemyToSpawnSlot(e);
                 e.laserState = 'moving';
                 e.laserTimer = Math.random() * 3 + 2;
             }
@@ -1349,20 +1500,7 @@ function update(dt) {
             }
 
             if (e.x < -e.width) {
-                e.x = canvas.width + 50;
-                if (e.enemyType === 1) {
-                    let minBaseY = 30 + e.waveAmp;
-                    let maxBaseY = canvas.height - 30 - e.waveAmp;
-                    if (maxBaseY < minBaseY) {
-                        e.waveAmp = (canvas.height - 60) / 4;
-                        minBaseY = 30 + e.waveAmp;
-                        maxBaseY = canvas.height - 30 - e.waveAmp;
-                    }
-                    e.baseY = Math.random() * (maxBaseY - minBaseY) + minBaseY;
-                    e.waveTimer = Math.random() * Math.PI * 2;
-                } else {
-                    e.y = Math.random() * (canvas.height - 60) + 30;
-                }
+                moveEnemyToSpawnSlot(e);
             }
 
             if (e.word !== "") {
