@@ -164,11 +164,27 @@ function clearHitMessageTimeout() {
 
 function showHitMessage(word) {
     clearHitMessageTimeout();
+    msg1.classList.remove('attack-missed');
     const hitText = `${word}에 명중하였습니다.`;
     msg1.textContent = hitText;
     hitMessageTimeout = setTimeout(() => {
         hitMessageTimeout = null;
         if (!missileWarningActive && msg1.textContent === hitText) {
+            msg1.textContent = '명령을 기다립니다.';
+        }
+    }, 3000);
+}
+
+// 무적(미진입) 적에게 공격이 튕겨 나갔을 때의 오렌지색 통신 메시지
+function showAttackMissedMessage() {
+    clearHitMessageTimeout();
+    const missText = "공격이 빗나갔습니다.";
+    msg1.textContent = missText;
+    msg1.classList.add('attack-missed');
+    hitMessageTimeout = setTimeout(() => {
+        hitMessageTimeout = null;
+        msg1.classList.remove('attack-missed');
+        if (!missileWarningActive && msg1.textContent === missText) {
             msg1.textContent = '명령을 기다립니다.';
         }
     }, 3000);
@@ -182,6 +198,7 @@ let msg1BeforeWarning = '';
 function clearMissileWarning(restoreMessage = true) {
     missileWarningActive = false;
     msg1.classList.remove('missile-warning-active');
+    msg1.classList.remove('attack-missed');
     if (restoreMessage && msg1BeforeWarning) {
         msg1.textContent = msg1BeforeWarning;
     }
@@ -792,35 +809,43 @@ function isEnemyOnScreen(e) {
     return e.x <= canvas.width - e.width / 2;
 }
 
-function processTyping(text) {
-    let hit = false;
-    let targets = [];
-    for (let i = 0; i < enemies.length; i++) {
-        if (enemies[i].word === text && isEnemyOnScreen(enemies[i])) {
-            targets.push(enemies[i]);
-        }
+// 입력한 낱말과 일치하는 적을 '화면에 완전히 진입한 적'과 '아직 걸친(무적) 적'으로 분류한다.
+function resolveTypingTargets(text) {
+    const onScreen = [];
+    const straddling = [];
+    for (const e of enemies) {
+        if (e.word !== text) continue;
+        (isEnemyOnScreen(e) ? onScreen : straddling).push(e);
     }
+    return { onScreen, straddling };
+}
 
-    if (targets.length > 0) {
-        targets.forEach(enemy => {
+function processTyping(text) {
+    msg1.classList.remove('attack-missed');
+    const { onScreen, straddling } = resolveTypingTargets(text);
+
+    if (onScreen.length > 0) {
+        // 정상 명중: 함포 발사 후 격추, 빔 충전
+        onScreen.forEach(() => {
             totalTypedChars += text.length;
         });
-        enqueueCannonFire(targets);
-        hit = true;
-        showHitMessage(targets[0].word);
+        enqueueCannonFire(onScreen);
+        showHitMessage(onScreen[0].word);
         showConsoleMsg2("새로운 목표물 설정하십시오.");
-    }
-
-    if (!hit) {
+        beamCharge = Math.min(100, beamCharge + 10);
+        updateBeamCharge();
+    } else if (straddling.length > 0) {
+        // 아직 진입하지 않은 적은 무적: 레이저를 90도로 튕겨낸다. (빔/통계 중립)
+        straddling.forEach(e => fireDeflectedLaser(e));
+        showAttackMissedMessage();
+    } else {
+        // 매칭 없음: 미스 처리
         clearHitMessageTimeout();
         failedChars += text.length;
         beamCharge = Math.max(0, beamCharge - 10);
         updateBeamCharge();
         msg1.textContent = "목표를 찾을 수 없습니다.";
         showConsoleMsg2("다시 확인하십시오.");
-    } else {
-        beamCharge = Math.min(100, beamCharge + 10);
-        updateBeamCharge();
     }
 
     if (beamCharge === 100 && gameState === 'PLAYING') {
@@ -833,23 +858,19 @@ function processBeamTyping(text) {
         totalTypedChars += text.length;
         fireSuperPowerBeam();
     } else {
-        let hit = false;
-        let targets = [];
-        for (let i = 0; i < enemies.length; i++) {
-            if (enemies[i].word === text && isEnemyOnScreen(enemies[i])) {
-                targets.push(enemies[i]);
-            }
-        }
+        msg1.classList.remove('attack-missed');
+        const { onScreen, straddling } = resolveTypingTargets(text);
 
-        if (targets.length > 0) {
-            targets.forEach(enemy => {
+        if (onScreen.length > 0) {
+            onScreen.forEach(() => {
                 totalTypedChars += text.length;
             });
-            enqueueCannonFire(targets);
-            hit = true;
-        }
-
-        if (!hit) {
+            enqueueCannonFire(onScreen);
+        } else if (straddling.length > 0) {
+            // 아직 진입하지 않은 적은 무적: 레이저를 90도로 튕겨낸다. (빔/통계 중립)
+            straddling.forEach(e => fireDeflectedLaser(e));
+            showAttackMissedMessage();
+        } else {
             failedChars += text.length;
             beamCharge = Math.max(0, beamCharge - 10);
             updateBeamCharge();
@@ -1095,6 +1116,21 @@ function updateFireQueue(dt) {
     if (fireQueueDelay <= 0) {
         fireNextInQueue();
     }
+}
+
+// 무적(미진입) 적에게 발사한 레이저: 명중 지점에서 90도로 화면 밖(가까운 상/하)으로 튕겨낸다.
+function fireDeflectedLaser(enemy) {
+    const goUp = enemy.y < canvas.height / 2;
+    lasers.push({
+        startX: player.x + player.width,
+        startY: player.y,
+        endX: enemy.x,
+        endY: enemy.y,
+        timer: 0.15,
+        deflected: true,
+        bounceX: enemy.x,
+        bounceY: goUp ? -60 : canvas.height + 60
+    });
 }
 
 function destroyEnemy(enemy) {
@@ -2090,6 +2126,9 @@ function draw() {
         ctx.beginPath();
         ctx.moveTo(l.startX, l.startY);
         ctx.lineTo(l.endX, l.endY);
+        if (l.deflected) {
+            ctx.lineTo(l.bounceX, l.bounceY);
+        }
         ctx.stroke();
 
         ctx.lineWidth = 2;

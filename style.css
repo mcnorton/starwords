@@ -372,6 +372,12 @@ canvas {
     color: var(--text-primary);
 }
 
+#console-msg-1.attack-missed {
+    color: #ff9900;
+    font-weight: bold;
+    text-shadow: 0 0 8px rgba(255, 153, 0, 0.7);
+}
+
 #console-msg-1.missile-warning-active {
     color: #ff2244;
     font-weight: bold;
