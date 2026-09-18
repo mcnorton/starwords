@@ -45,8 +45,10 @@ const modalSettings = document.getElementById('modal-settings');
 const centerBanner = document.getElementById('center-banner');
 
 // Data
-let wordsList = WORD_DATA_KO.words;
-let beamCodes = WORD_DATA_KO.beamCodes;
+// wordsList: 현재 챌린지에서 출제되는 낱말 풀 (학년/언어 + 챌린지 진행도에 따라 갱신)
+// beamCodes: POWER BEAM 발사 코드(속담/관용구) 목록
+let wordsList = [];
+let beamCodes = [];
 
 // Game State
 let gameState = 'START'; // START, PREP, COUNTDOWN, PLAYING, BEAM_INPUT, CHALLENGE_CLEAR, GAME_OVER
@@ -76,8 +78,15 @@ let currentTypingStartTime = null;
 // Settings
 let settings = {
     name: "Player",
-    lang: "ko"
+    lang: "ko",
+    grade: 1 // 한글 학년(1~6). 영어(en)에서는 사용하지 않습니다.
 };
+
+// 학년 값(1~6)만 허용하고 그 외에는 기본값 1로 보정합니다.
+function normalizeGrade(value) {
+    const n = Math.floor(Number(value));
+    return Number.isFinite(n) && n >= 1 && n <= 6 ? n : 1;
+}
 
 // Load settings
 const savedSettings = readJsonFromLocalStorage('starwords_settings', null);
@@ -86,19 +95,45 @@ if (savedSettings && typeof savedSettings === 'object') {
         ? savedSettings.name.trim()
         : "Player";
     settings.lang = savedSettings.lang === 'en' ? 'en' : 'ko';
+    settings.grade = normalizeGrade(savedSettings.grade);
 }
 document.getElementById('setting-name').value = settings.name;
 document.getElementById('setting-lang').value = settings.lang;
-updateLanguage();
+document.getElementById('setting-grade').value = String(settings.grade);
+updateGradeVisibility();
+refreshWordPool();
 
-function updateLanguage() {
+// 현재 언어/학년에 해당하는 레벨 배열과 beamCodes를 반환합니다.
+function getActiveWordData() {
     if (settings.lang === 'ko') {
-        wordsList = WORD_DATA_KO.words;
-        beamCodes = WORD_DATA_KO.beamCodes;
-    } else {
-        wordsList = WORD_DATA_EN.words;
-        beamCodes = WORD_DATA_EN.beamCodes;
+        const grade = WORD_DATA_KO.grades[settings.grade] || WORD_DATA_KO.grades[1];
+        return { levels: grade.levels, beamCodes: grade.beamCodes };
     }
+    return { levels: WORD_DATA_EN.levels, beamCodes: WORD_DATA_EN.beamCodes };
+}
+
+// 챌린지 진행도에 맞춰 출제 낱말 풀을 갱신합니다.
+// CHALLENGE N 은 Level 1~N 을 누적해서 사용하며, 11~15 는 전체 Level(1~10)을 사용합니다.
+function refreshWordPool() {
+    const data = getActiveWordData();
+    beamCodes = data.beamCodes;
+
+    const levelCount = Math.min(Math.max(currentChallenge, 1), data.levels.length);
+    const pool = [];
+    for (let i = 0; i < levelCount; i++) {
+        pool.push(...data.levels[i]);
+    }
+    wordsList = [...new Set(pool)];
+}
+
+// 언어 선택 값에 따라 Grade 선택 UI 표시 여부를 토글합니다. (한글일 때만 노출)
+// 저장 전 임시 선택 상태를 반영하기 위해 settings 대신 select 값을 직접 읽습니다.
+function updateGradeVisibility() {
+    const field = document.getElementById('grade-field');
+    if (!field) return;
+    const langSelect = document.getElementById('setting-lang');
+    const lang = langSelect ? langSelect.value : settings.lang;
+    field.classList.toggle('hidden', lang !== 'ko');
 }
 
 function showBeamCode(code) {
@@ -463,6 +498,8 @@ function openSettings() {
 
     document.getElementById('setting-name').value = settings.name;
     document.getElementById('setting-lang').value = settings.lang;
+    document.getElementById('setting-grade').value = String(settings.grade);
+    updateGradeVisibility();
     disableTypeInput();
     modalSettings.classList.remove('hidden');
     document.getElementById('setting-name').focus();
@@ -488,6 +525,8 @@ function resumeAfterSettings() {
 function closeSettingsWithoutSave() {
     document.getElementById('setting-name').value = settings.name;
     document.getElementById('setting-lang').value = settings.lang;
+    document.getElementById('setting-grade').value = String(settings.grade);
+    updateGradeVisibility();
     modalSettings.classList.add('hidden');
 
     // 게임 시작 전 "Ready for Battle" 단계에서 닫으면 타이틀 화면으로 돌아갑니다.
@@ -504,16 +543,20 @@ function closeSettingsWithoutSave() {
 function saveSettings() {
     const rawName = document.getElementById('setting-name').value;
     const rawLang = document.getElementById('setting-lang').value;
+    const rawGrade = document.getElementById('setting-grade').value;
 
     // 초보자용 설명:
     // 이름이 공백만 들어오면 점수판이 보기 어려워지므로 기본 이름으로 보정합니다.
     settings.name = rawName.trim() || "Player";
     settings.lang = rawLang === 'en' ? 'en' : 'ko';
+    settings.grade = normalizeGrade(rawGrade);
 
     document.getElementById('setting-name').value = settings.name;
     document.getElementById('setting-lang').value = settings.lang;
+    document.getElementById('setting-grade').value = String(settings.grade);
+    updateGradeVisibility();
     localStorage.setItem('starwords_settings', JSON.stringify(settings));
-    updateLanguage();
+    refreshWordPool();
     modalSettings.classList.add('hidden');
 
     // "Ready for Battle" 단계에서 Deploy 하면 카운트다운 → CHALLENGE 1 순서로 진입합니다.
@@ -529,6 +572,9 @@ function saveSettings() {
 document.getElementById('btn-settings').addEventListener('click', openSettings);
 document.getElementById('btn-close-settings').addEventListener('click', closeSettingsWithoutSave);
 document.getElementById('btn-save-settings').addEventListener('click', saveSettings);
+
+// 언어를 바꾸면 즉시 Grade 선택 UI 표시 여부를 갱신합니다. (한글일 때만 노출)
+document.getElementById('setting-lang').addEventListener('change', updateGradeVisibility);
 
 document.getElementById('btn-next-challenge').addEventListener('click', proceedChallengeClear);
 
@@ -674,6 +720,8 @@ function startBattlePrep() {
     gameState = 'PREP';
     document.getElementById('setting-name').value = settings.name;
     document.getElementById('setting-lang').value = settings.lang;
+    document.getElementById('setting-grade').value = String(settings.grade);
+    updateGradeVisibility();
     disableTypeInput();
     modalSettings.classList.remove('hidden');
     document.getElementById('setting-name').focus();
@@ -698,6 +746,7 @@ function startCountdownSequence() {
 
 function startGame() {
     resetGame();
+    refreshWordPool();
     startOverlay.classList.add('hidden');
     startTime = Date.now();
     lastTime = Date.now();
@@ -723,6 +772,7 @@ function nextChallenge() {
     fireQueue = [];
     fireQueueDelay = 0;
     particles = [];
+    refreshWordPool();
     spawnEnemies();
 
     if (beamCharge === 100) {
