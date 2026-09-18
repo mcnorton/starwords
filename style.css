@@ -92,7 +92,7 @@ body {
 }
 
 /* 고정 슬롯: 숫자 자릿수 변화에도 레이아웃 유지 */
-.slot-2 { width: 28px; }  /* CHALLENGE 1~15 */
+.slot-2 { width: 56px; }  /* CHALLENGE 1~14 / Final */
 .slot-3 { width: 42px; }  /* 0~100 퍼센트 계기 */
 .slot-4 { width: 56px; }  /* TRIGGERING SKILL ~999 */
 .slot-6 { width: 84px; }  /* MISSION PTS ~999999 */

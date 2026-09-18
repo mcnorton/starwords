@@ -947,7 +947,8 @@ function hideCenterBanner() {
 }
 
 function showChallengeBanner(challengeNum) {
-    showCenterBanner(`CHALLENGE ${challengeNum}`, 'challenge');
+    const text = challengeNum >= maxChallenge ? 'Final Battle' : `CHALLENGE ${challengeNum}`;
+    showCenterBanner(text, 'challenge');
     if (bannerTimeout !== null) {
         clearTimeout(bannerTimeout);
     }
@@ -955,6 +956,10 @@ function showChallengeBanner(challengeNum) {
         bannerTimeout = null;
         hideCenterBanner();
     }, 2000);
+}
+
+function updateChallengeHud() {
+    uiChallenge.textContent = currentChallenge >= maxChallenge ? 'Final' : String(currentChallenge);
 }
 
 // 타이틀에서 시작을 누르면 "Ready for Battle" 창(설정 모달)을 띄웁니다.
@@ -1005,7 +1010,6 @@ function startGame() {
 function nextChallenge() {
     currentChallenge++;
     if (currentChallenge > maxChallenge) {
-        showGameOver();
         return;
     }
 
@@ -1014,7 +1018,7 @@ function nextChallenge() {
     challengeBeamFires = 0;
     energyShield = 100;
     updateEnergyShield();
-    uiChallenge.textContent = currentChallenge;
+    updateChallengeHud();
     enemies = [];
     missiles = [];
     lasers = [];
@@ -1031,7 +1035,11 @@ function nextChallenge() {
         triggerBeamMode(true);
     } else {
         gameState = 'PLAYING';
-        msg1.textContent = `다수의 적대적 함선이 포착되었습니다. CHALLENGE ${currentChallenge} 작전을 시작합니다!`;
+        if (currentChallenge >= maxChallenge) {
+            msg1.textContent = "FINAL BATTLE 작전을 시작합니다! 모든 대원 전투배치.";
+        } else {
+            msg1.textContent = `다수의 적대적 함선이 포착되었습니다. CHALLENGE ${currentChallenge} 작전을 시작합니다!`;
+        }
         showConsoleMsg2("모든 대원 정위치. 첫 목표물을 말씀하십시오.");
     }
 
@@ -1067,7 +1075,7 @@ function resetGame() {
     currentTypingStartTime = null;
     startTime = 0;
     typeInput.value = '';
-    uiChallenge.textContent = currentChallenge;
+    updateChallengeHud();
     updateEnergyShield();
     updateBeamCharge();
     resetHudScores();
@@ -1540,7 +1548,11 @@ function updateEndingSequence(dt) {
     endScreenDelay = 0;
     if (pendingChallengeClear) {
         pendingChallengeClear = false;
-        handleChallengeClear();
+        if (currentChallenge >= maxChallenge) {
+            showBreakthrough();
+        } else {
+            handleChallengeClear();
+        }
     } else if (pendingGameOver) {
         pendingGameOver = false;
         showGameOver();
@@ -2334,10 +2346,26 @@ function handleChallengeClear() {
     modalChallengeClear.classList.remove('hidden');
 }
 
+function showBreakthrough() {
+    enemies = [];
+    missiles = [];
+    lasers = [];
+    asteroids = [];
+    fireQueue = [];
+    fireQueueDelay = 0;
+    showEndScreen('Breakthrough!');
+}
+
 function showGameOver() {
+    asteroids = [];
+    showEndScreen('Mission Failed.');
+}
+
+function showEndScreen(title) {
     gameState = 'GAME_OVER';
     clearMissileWarning(false);
-    asteroids = [];
+    document.getElementById('end-screen-title').textContent = title;
+
     const triggeringSkill = calculateTriggeringSkill();
     let skillBonus = triggeringSkill * currentChallenge;
     let finalMissionPoints = missionPoints + skillBonus;
