@@ -25,21 +25,34 @@ body {
     background-color: #000;
     color: var(--text-primary);
     font-family: var(--font-kr);
+    margin: 0;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+#viewport {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
     overflow: hidden;
+    background-color: #000;
 }
 
 #game-container {
     width: 1000px;
     height: 700px;
+    flex-shrink: 0;
     background-color: var(--bg-color);
     border: 2px solid var(--frame-color);
     display: flex;
     flex-direction: column;
     position: relative;
+    transform-origin: center center;
     box-shadow:
         0 0 30px rgba(0, 255, 204, 0.15),
         inset 0 0 60px rgba(0, 0, 0, 0.8);
@@ -462,7 +475,10 @@ canvas {
     background: transparent;
     border: none;
     color: #fff;
-    font-size: 18px;
+    font-size: 22px;
+    line-height: 26px;
+    height: 26px;
+    padding: 0;
     font-family: var(--font-kr);
     outline: none;
     flex-grow: 1;

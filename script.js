@@ -1,5 +1,10 @@
 const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
+const gameContainer = document.getElementById('game-container');
+
+const DESIGN_W = 1000;
+const DESIGN_H = 700;
+const VIEW_PAD = 16;
 
 canvas.width = canvas.parentElement.clientWidth;
 canvas.height = canvas.parentElement.clientHeight;
@@ -503,7 +508,28 @@ function resizeCanvasToContainer() {
     reseatEnemiesIntoLanes();
 }
 
-window.addEventListener('resize', resizeCanvasToContainer);
+// 1000×700 설계 해상도를 뷰포트에 맞춰 균등 스케일(레터박스). 가로만 늘려 난이도가 쉬워지지 않게 한다.
+function fitGameToViewport() {
+    const vw = window.visualViewport?.width ?? window.innerWidth;
+    const vh = window.visualViewport?.height ?? window.innerHeight;
+    const scale = Math.min(
+        (vw - VIEW_PAD * 2) / DESIGN_W,
+        (vh - VIEW_PAD * 2) / DESIGN_H
+    );
+    gameContainer.style.transform = `scale(${Math.max(scale, 0.1)})`;
+}
+
+function handleViewportResize() {
+    fitGameToViewport();
+    resizeCanvasToContainer();
+}
+
+window.addEventListener('resize', handleViewportResize);
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', handleViewportResize);
+    window.visualViewport.addEventListener('scroll', fitGameToViewport);
+}
+fitGameToViewport();
 resizeCanvasToContainer();
 
 function isSettingsOpen() {
