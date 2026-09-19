@@ -3,6 +3,5 @@ source/
 tools/
 docs/
 .DS_Store
-# local dual checkout from main — do not commit on game branch
 README.md
 screenshots/
