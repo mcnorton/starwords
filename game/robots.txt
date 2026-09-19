@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://starwords.vercel.app/sitemap.xml
