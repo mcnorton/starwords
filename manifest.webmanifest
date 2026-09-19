@@ -1,7 +1,7 @@
 {
-  "name": "STAR WORDS: Space Typing Game",
+  "name": "STAR WORDS: Breakthrough",
   "short_name": "STAR WORDS",
-  "description": "우주 테마 타이핑 게임. 적 함선 위의 낱말을 입력해 격추하고 15개 챌린지를 돌파하세요.",
+  "description": "Season 1 — 침략군의 포위를 뚫고 탈출하는 우주 타이핑 게임. 적 함선 위의 낱말을 입력해 격추하세요.",
   "lang": "ko",
   "start_url": "./",
   "scope": "./",

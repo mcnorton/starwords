@@ -351,10 +351,44 @@ canvas {
 
 .overlay h1 {
     font-size: 36px;
-    margin-bottom: 20px;
+    margin-bottom: 12px;
     color: var(--text-primary);
     text-shadow: 2px 2px 0px #ff00ff, 0 0 20px rgba(0, 255, 204, 0.5);
     font-family: var(--font-pixel);
+}
+
+#start-overlay .title-subtitle {
+    margin: 0 0 10px;
+    font-family: var(--font-pixel);
+    font-size: 14px;
+    letter-spacing: 2px;
+    color: var(--text-mission-points);
+    text-shadow: 0 0 12px rgba(255, 224, 102, 0.45);
+}
+
+#start-overlay .title-season {
+    margin: 0 0 14px;
+    font-family: var(--font-pixel);
+    font-size: 8px;
+    letter-spacing: 3px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+}
+
+#start-overlay .title-tagline {
+    margin: 0 0 28px;
+    font-family: var(--font-kr);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: rgba(0, 255, 204, 0.85);
+}
+
+#start-overlay .title-prompt {
+    margin: 0;
+    color: var(--text-dim);
+    font-size: 14px;
+    letter-spacing: 0.5px;
 }
 
 .overlay p {
