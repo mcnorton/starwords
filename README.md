@@ -26,21 +26,21 @@
 
 ## 2. 스크린샷
 
-### 타이틀 화면
+### 시작 화면
 
-![타이틀 화면](screenshots/title.png)
+![시작 화면](screenshots/01-title.png)
 
-### 전투 플레이
+### 타이핑으로 공격
 
-![전투 플레이](screenshots/gameplay.png)
+![타이핑 공격](screenshots/02-typing-attack.png)
 
-### POWER BEAM 발사 코드 입력
+### POWER BEAM 다수 격추
 
-![POWER BEAM](screenshots/beam.png)
+![POWER BEAM](screenshots/03-power-beam.png)
 
-### 게임 오버 & 점수판
+### PWA 설치
 
-![게임 오버](screenshots/result.png)
+![PWA 설치](screenshots/04-install-popup.png)
 
 ---
 
