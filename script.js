@@ -756,6 +756,9 @@ function openSettings() {
     document.getElementById('setting-lang').value = settings.lang;
     document.getElementById('setting-grade').value = String(settings.grade);
     updateGradeVisibility();
+    if (settingsHint) settingsHint.textContent = SETTINGS_HINT_DEFAULT;
+    setInstallHint(INSTALL_HINT_DEFAULT);
+    refreshInstallButtonState();
     disableTypeInput();
     modalSettings.classList.remove('hidden');
     document.getElementById('setting-name').focus();
@@ -828,6 +831,107 @@ function saveSettings() {
 document.getElementById('btn-settings').addEventListener('click', openSettings);
 document.getElementById('btn-close-settings').addEventListener('click', closeSettingsWithoutSave);
 document.getElementById('btn-save-settings').addEventListener('click', saveSettings);
+
+// --- PWA install (settings footer) ---
+const btnInstallPwa = document.getElementById('btn-install-pwa');
+const settingsHint = document.getElementById('settings-hint');
+const installHint = document.getElementById('install-hint');
+const SETTINGS_HINT_DEFAULT = '[ENTER] Deploy · [ESC] Close';
+const INSTALL_HINT_DEFAULT = 'Install for offline play on this device';
+const INSTALL_HINT_IOS = 'Share → Add to Home Screen';
+let deferredInstallPrompt = null;
+
+function isPwaInstalled() {
+    if (window.matchMedia('(display-mode: standalone)').matches) return true;
+    if (typeof navigator.standalone === 'boolean' && navigator.standalone) return true;
+    return false;
+}
+
+function isIosSafari() {
+    const ua = navigator.userAgent || '';
+    const iOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const webkit = /WebKit/.test(ua);
+    const notChrome = !/CriOS|FxiOS|EdgiOS/.test(ua);
+    return iOS && webkit && notChrome;
+}
+
+function setInstallHint(text) {
+    if (installHint) installHint.textContent = text;
+}
+
+function setInstallButtonInstalled() {
+    if (!btnInstallPwa) return;
+    btnInstallPwa.textContent = 'INSTALLED';
+    btnInstallPwa.disabled = true;
+    btnInstallPwa.classList.add('is-installed');
+    deferredInstallPrompt = null;
+    setInstallHint(INSTALL_HINT_DEFAULT);
+}
+
+function setInstallButtonReady() {
+    if (!btnInstallPwa) return;
+    btnInstallPwa.textContent = 'INSTALL';
+    btnInstallPwa.disabled = false;
+    btnInstallPwa.classList.remove('is-installed');
+}
+
+function setInstallButtonWaiting() {
+    if (!btnInstallPwa) return;
+    btnInstallPwa.textContent = 'INSTALL';
+    // iOS: keep clickable for home-screen hint; otherwise wait for beforeinstallprompt
+    if (isIosSafari() && !isPwaInstalled()) {
+        btnInstallPwa.disabled = false;
+        btnInstallPwa.classList.remove('is-installed');
+    } else {
+        btnInstallPwa.disabled = true;
+        btnInstallPwa.classList.remove('is-installed');
+    }
+}
+
+function refreshInstallButtonState() {
+    if (isPwaInstalled()) {
+        setInstallButtonInstalled();
+    } else if (deferredInstallPrompt) {
+        setInstallButtonReady();
+    } else {
+        setInstallButtonWaiting();
+    }
+}
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    refreshInstallButtonState();
+});
+
+window.addEventListener('appinstalled', () => {
+    setInstallButtonInstalled();
+});
+
+if (btnInstallPwa) {
+    btnInstallPwa.addEventListener('click', async () => {
+        if (isPwaInstalled()) return;
+
+        if (deferredInstallPrompt) {
+            const promptEvent = deferredInstallPrompt;
+            deferredInstallPrompt = null;
+            promptEvent.prompt();
+            const choice = await promptEvent.userChoice;
+            if (choice.outcome === 'accepted') {
+                setInstallButtonInstalled();
+            } else {
+                refreshInstallButtonState();
+            }
+            return;
+        }
+
+        if (isIosSafari()) {
+            setInstallHint(INSTALL_HINT_IOS);
+        }
+    });
+}
+
+refreshInstallButtonState();
 
 // 언어를 바꾸면 즉시 Grade 선택 UI 표시 여부를 갱신합니다. (한글일 때만 노출)
 document.getElementById('setting-lang').addEventListener('change', updateGradeVisibility);
@@ -999,6 +1103,9 @@ function startBattlePrep() {
     document.getElementById('setting-lang').value = settings.lang;
     document.getElementById('setting-grade').value = String(settings.grade);
     updateGradeVisibility();
+    if (settingsHint) settingsHint.textContent = SETTINGS_HINT_DEFAULT;
+    setInstallHint(INSTALL_HINT_DEFAULT);
+    refreshInstallButtonState();
     disableTypeInput();
     modalSettings.classList.remove('hidden');
     document.getElementById('setting-name').focus();
@@ -2968,3 +3075,11 @@ updateBeamCharge();
 updateMissionPoints();
 lastTime = Date.now();
 requestAnimationFrame(gameLoop);
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch((err) => {
+            console.warn('[STAR WORDS] Service Worker 등록 실패', err);
+        });
+    });
+}

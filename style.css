@@ -4,6 +4,31 @@
  * non-linear silhouette top & bottom only; third-person playfield stays open;
  * no outer rectangular bezel — black viewport reads as the full game screen.
  */
+
+@font-face {
+    font-family: 'Press Start 2P';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('fonts/press-start-2p.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Noto Sans KR';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('fonts/noto-sans-kr-400.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'Noto Sans KR';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('fonts/noto-sans-kr-700.woff2') format('woff2');
+}
+
 :root {
     --bg-color: #030308;
     --hud-bg: rgba(4, 8, 18, 0.92);
@@ -648,6 +673,10 @@ canvas {
 
 #modal-settings .modal-settings-footer {
     width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--settings-block-gap);
 }
 
 #modal-settings .modal-settings-actions {
@@ -664,6 +693,50 @@ canvas {
 
 #modal-settings .modal-settings-actions .modal-hint {
     margin: 0 !important;
+}
+
+#modal-settings .modal-settings-install {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--settings-hint-gap);
+    width: 100%;
+    padding-top: var(--settings-block-gap);
+}
+
+#modal-settings .modal-settings-install::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 1px;
+    background: var(--frame-bright);
+}
+
+#modal-settings .modal-settings-install button {
+    margin-top: 0;
+}
+
+#modal-settings .modal-settings-install #btn-install-pwa:disabled,
+#modal-settings .modal-settings-install #btn-install-pwa.is-installed {
+    opacity: 0.4;
+    cursor: default;
+    pointer-events: none;
+}
+
+#modal-settings .modal-settings-install #btn-install-pwa:disabled:hover,
+#modal-settings .modal-settings-install #btn-install-pwa.is-installed:hover {
+    background: transparent;
+    color: var(--text-primary);
+}
+
+#modal-settings .modal-settings-install .modal-install-hint {
+    margin: 0 !important;
+    font-size: 11px;
+    text-align: center;
+    line-height: 1.5;
 }
 
 .modal h2 {

@@ -3,9 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#030308">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="STAR WORDS">
     <title>STAR WORDS: Space Typing Game</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div id="viewport">
@@ -285,7 +291,11 @@
         <div class="modal-settings-footer">
             <div class="modal-settings-actions">
                 <button id="btn-save-settings" type="button">Deploy</button>
-                <p class="modal-hint">[ENTER] Deploy · [ESC] Close</p>
+                <p class="modal-hint" id="settings-hint">[ENTER] Deploy · [ESC] Close</p>
+            </div>
+            <div class="modal-settings-install">
+                <button id="btn-install-pwa" type="button" disabled>INSTALL</button>
+                <p class="modal-hint modal-install-hint" id="install-hint">Install for offline play on this device</p>
             </div>
         </div>
     </div>
