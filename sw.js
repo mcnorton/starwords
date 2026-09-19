@@ -1,5 +1,5 @@
 /* STAR WORDS service worker — cache-first offline shell */
-const CACHE_NAME = 'starwords-v1';
+const CACHE_NAME = 'starwords-v2';
 const PRECACHE_URLS = [
     './',
     './index.html',
@@ -8,8 +8,15 @@ const PRECACHE_URLS = [
     './data/ko.js',
     './data/en.js',
     './manifest.webmanifest',
+    './favicon.ico',
+    './icons/favicon-16.png',
+    './icons/favicon-32.png',
+    './icons/apple-touch-icon.png',
     './icons/icon-192.png',
     './icons/icon-512.png',
+    './icons/icon-maskable-192.png',
+    './icons/icon-maskable-512.png',
+    './icons/og-image.png',
     './fonts/press-start-2p.woff2',
     './fonts/noto-sans-kr-400.woff2',
     './fonts/noto-sans-kr-700.woff2',
