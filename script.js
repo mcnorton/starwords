@@ -1189,12 +1189,15 @@ function destroyEnemy(enemy) {
             timer: 0.15
         });
 
-        let color;
-        if (enemy.enemyType === 1) color = '#00ff00';
-        else if (enemy.enemyType === 2) color = 'yellow';
-        else if (enemy.enemyType === 3) color = 'orange';
-        else color = 'red';
-        createExplosion(enemy.x, enemy.y, color, 80);
+        if (enemy.enemyType === 'line') {
+            createStarDestroyerExplosion(enemy.x, enemy.y);
+        } else {
+            let color;
+            if (enemy.enemyType === 1) color = '#00ff00';
+            else if (enemy.enemyType === 2) color = 'yellow';
+            else color = 'orange';
+            createExplosion(enemy.x, enemy.y, color, 80);
+        }
 
         enemies.splice(eIndex, 1);
         challengeEnemiesDestroyed++;
@@ -1345,29 +1348,73 @@ function updateAsteroids(dt) {
 }
 
 function drawAsteroid(a) {
+    const hex = '#8a8a8a';
     ctx.save();
     ctx.translate(a.x, a.y);
     ctx.rotate(a.rotation);
 
-    ctx.fillStyle = '#8a8a8a';
-    ctx.strokeStyle = '#5a5a5a';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    a.verts.forEach((v, i) => {
-        if (i === 0) ctx.moveTo(v.x, v.y);
-        else ctx.lineTo(v.x, v.y);
-    });
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+    const drawPoly = (ox, oy, scale) => {
+        ctx.beginPath();
+        a.verts.forEach((v, i) => {
+            const x = v.x * scale + ox;
+            const y = v.y * scale + oy;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        });
+        ctx.closePath();
+    };
 
-    ctx.fillStyle = '#6e6e6e';
-    ctx.beginPath();
-    ctx.arc(-a.radius * 0.25, -a.radius * 0.2, a.radius * 0.22, 0, Math.PI * 2);
+    // 하단/우측 그림자 실루엣
+    ctx.fillStyle = shipShade(hex, 'deep');
+    drawPoly(a.radius * 0.08, a.radius * 0.1, 1);
     ctx.fill();
-    ctx.beginPath();
-    ctx.arc(a.radius * 0.3, a.radius * 0.15, a.radius * 0.15, 0, Math.PI * 2);
+
+    // 본체
+    ctx.fillStyle = shipShade(hex, 'mid');
+    drawPoly(0, 0, 1);
     ctx.fill();
+
+    // 상단/좌측 하이라이트 (축소 폴리곤)
+    ctx.fillStyle = shipShade(hex, 'highlight');
+    drawPoly(-a.radius * 0.06, -a.radius * 0.08, 0.72);
+    ctx.fill();
+
+    // 능선/균열 (직선)
+    ctx.strokeStyle = shipShade(hex, 'deep');
+    ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.55;
+    ctx.beginPath();
+    ctx.moveTo(-a.radius * 0.35, -a.radius * 0.15);
+    ctx.lineTo(a.radius * 0.1, a.radius * 0.25);
+    ctx.moveTo(a.radius * 0.05, -a.radius * 0.4);
+    ctx.lineTo(a.radius * 0.35, a.radius * 0.05);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // 크레이터 (테두리 하이라이트 + 안쪽 그림자)
+    const drawCrater = (cx, cy, r) => {
+        ctx.fillStyle = shipShade(hex, 'deep');
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = shipShade(hex, 'shadow');
+        ctx.beginPath();
+        ctx.arc(cx + r * 0.15, cy + r * 0.15, r * 0.7, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = shipShade(hex, 'highlight');
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(cx - r * 0.15, cy - r * 0.15, r * 0.85, -Math.PI * 0.9, Math.PI * 0.15);
+        ctx.stroke();
+    };
+    drawCrater(-a.radius * 0.25, -a.radius * 0.2, a.radius * 0.22);
+    drawCrater(a.radius * 0.3, a.radius * 0.15, a.radius * 0.15);
+
+    // 외곽선
+    ctx.strokeStyle = shipShade(hex, 'deep');
+    ctx.lineWidth = 1.5;
+    drawPoly(0, 0, 1);
+    ctx.stroke();
 
     ctx.restore();
 }
@@ -1406,6 +1453,34 @@ function createHugeExplosion(x, y, color) {
     }
 }
 
+// 거대 전함(스타디스트로이어) 격파: 빨강 코어 + 주황/노랑 파편으로 대규모 파괴감
+function createStarDestroyerExplosion(x, y) {
+    const bursts = [
+        { color: '#ee2222', count: 70, speedMin: 80, speedRange: 280, sizeMin: 3, sizeRange: 7, lifeMin: 0.5, lifeRange: 0.7 },
+        { color: '#ff7700', count: 90, speedMin: 100, speedRange: 340, sizeMin: 4, sizeRange: 9, lifeMin: 0.6, lifeRange: 0.9 },
+        { color: '#ffcc22', count: 90, speedMin: 120, speedRange: 380, sizeMin: 3, sizeRange: 8, lifeMin: 0.7, lifeRange: 1.0 },
+        { color: '#fff5aa', count: 40, speedMin: 60, speedRange: 220, sizeMin: 2, sizeRange: 5, lifeMin: 0.4, lifeRange: 0.6 }
+    ];
+
+    bursts.forEach(b => {
+        for (let i = 0; i < b.count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * b.speedRange + b.speedMin;
+            const life = Math.random() * b.lifeRange + b.lifeMin;
+            particles.push({
+                x: x + (Math.random() - 0.5) * 28,
+                y: y + (Math.random() - 0.5) * 20,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                life: life,
+                maxLife: life + 0.8,
+                size: Math.random() * b.sizeRange + b.sizeMin,
+                color: b.color
+            });
+        }
+    });
+}
+
 function getEnergyShieldColor() {
     if (energyShield > 80) return '#00ffcc';
     if (energyShield > 60) return '#adff2f';
@@ -1414,11 +1489,31 @@ function getEnergyShieldColor() {
     return '#ff3366';
 }
 
+function updateCockpitNeonFromShield() {
+    const hex = getEnergyShieldColor().replace('#', '');
+    const r = parseInt(hex.substring(0, 2), 16);
+    const g = parseInt(hex.substring(2, 4), 16);
+    const b = parseInt(hex.substring(4, 6), 16);
+    const midR = Math.min(255, r + 50);
+    const midG = Math.min(255, g + 50);
+    const midB = Math.min(255, b + 50);
+    const coreR = Math.min(255, Math.round(r * 0.35 + 255 * 0.65));
+    const coreG = Math.min(255, Math.round(g * 0.35 + 255 * 0.65));
+    const coreB = Math.min(255, Math.round(b * 0.35 + 255 * 0.65));
+
+    gameContainer.style.setProperty('--neon-line', `#${hex}`);
+    gameContainer.style.setProperty('--neon-bloom', `rgba(${r}, ${g}, ${b}, 0.55)`);
+    gameContainer.style.setProperty('--neon-mid', `rgba(${midR}, ${midG}, ${midB}, 0.9)`);
+    gameContainer.style.setProperty('--neon-core', `rgb(${coreR}, ${coreG}, ${coreB})`);
+    gameContainer.style.setProperty('--neon-glow', `rgba(${r}, ${g}, ${b}, 0.85)`);
+}
+
 function updateEnergyShield() {
     energyShield = Math.max(0, Math.min(100, Math.round(energyShield)));
     uiEnergyShield.style.width = energyShield + '%';
     uiEnergyShield.style.background = getEnergyShieldColor();
     uiEnergyShieldValue.textContent = energyShield;
+    updateCockpitNeonFromShield();
 }
 
 function updateBeamCharge() {
@@ -1920,252 +2015,682 @@ function lightenColor(color, amount) {
     return `rgb(${r}, ${g}, ${b})`;
 }
 
-function drawFalcon(cx, cy, w, h, color = '#00ffcc') {
-    const hw = w / 2;
-    const hh = h / 2;
+// 함선 공통 셰이딩: highlight / mid / shadow / deep
+function shipShade(hex, kind) {
+    switch (kind) {
+        case 'highlight': return lightenColor(hex, 70);
+        case 'mid': return hex;
+        case 'shadow': return darkenColor(hex, 45);
+        case 'deep': return darkenColor(hex, 80);
+        default: return hex;
+    }
+}
+
+function drawShipCockpit(cx, cy, r) {
+    ctx.fillStyle = 'rgba(180, 240, 255, 0.35)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 1.55, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#dff8ff';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(cx - r * 0.25, cy - r * 0.25, r * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+function drawThrusterGlow(x, y, r) {
+    ctx.fillStyle = 'rgba(255, 140, 40, 0.45)';
+    ctx.beginPath();
+    ctx.arc(x, y, r * 1.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ffaa33';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff0c0';
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+// Millennium Falcon 후미: 밝은 파란 엔진 밴드 + 왼쪽 화면 끝까지 그라데이션 플룸
+function drawFalconEngineNeon(cx, cy, hw, hh) {
+    const bankX = cx - hw * 0.88;
+    const bankW = Math.max(4, hw * 0.22);
+    const bankH = hh * 0.62;
+    const coreH = bankH * 0.55;
+    // 트레일은 캔버스 왼쪽 끝(0)에서 투명하게 사라짐 — 쉴드(~cx±44) 밖으로 충분히 길게
+    const trailLeft = 0;
+    const trailRight = bankX + bankW * 0.35;
 
     ctx.save();
 
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.ellipse(cx - hw * 0.2, cy, hw * 0.5, hh * 0.8, 0, 0, Math.PI * 2);
-    ctx.fill();
+    // ── 긴 엔진 플룸 (그라데이션 → 왼쪽 화면 끝) ──
+    const plumeGrad = ctx.createLinearGradient(trailRight, cy, trailLeft, cy);
+    plumeGrad.addColorStop(0, 'rgba(220, 245, 255, 0.95)');
+    plumeGrad.addColorStop(0.06, 'rgba(120, 200, 255, 0.8)');
+    plumeGrad.addColorStop(0.2, 'rgba(50, 140, 255, 0.45)');
+    plumeGrad.addColorStop(0.45, 'rgba(30, 100, 220, 0.22)');
+    plumeGrad.addColorStop(0.75, 'rgba(20, 60, 160, 0.08)');
+    plumeGrad.addColorStop(1, 'rgba(10, 30, 80, 0)');
 
+    ctx.fillStyle = plumeGrad;
+    // 약간 테이퍼: 엔진 쪽은 두껍고 왼쪽은 얇아짐
     ctx.beginPath();
-    ctx.moveTo(cx + hw * 0.1, cy - hh * 0.25);
-    ctx.lineTo(cx + hw * 0.95, cy - hh * 0.12);
-    ctx.lineTo(cx + hw * 0.85, cy - hh * 0.35);
-    ctx.lineTo(cx + hw * 0.15, cy - hh * 0.45);
+    ctx.moveTo(trailRight, cy - bankH * 0.52);
+    ctx.lineTo(trailRight, cy + bankH * 0.52);
+    ctx.lineTo(trailLeft, cy + coreH * 0.35);
+    ctx.lineTo(trailLeft, cy - coreH * 0.35);
     ctx.closePath();
     ctx.fill();
 
+    // 코어 빔 (더 가늘고 밝은 중앙 스트립)
+    const coreGrad = ctx.createLinearGradient(trailRight, cy, trailLeft, cy);
+    coreGrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+    coreGrad.addColorStop(0.12, 'rgba(180, 230, 255, 0.7)');
+    coreGrad.addColorStop(0.4, 'rgba(100, 180, 255, 0.28)');
+    coreGrad.addColorStop(0.8, 'rgba(60, 140, 255, 0.06)');
+    coreGrad.addColorStop(1, 'rgba(40, 100, 200, 0)');
+    ctx.fillStyle = coreGrad;
     ctx.beginPath();
-    ctx.moveTo(cx + hw * 0.1, cy + hh * 0.25);
-    ctx.lineTo(cx + hw * 0.95, cy + hh * 0.12);
-    ctx.lineTo(cx + hw * 0.85, cy + hh * 0.35);
-    ctx.lineTo(cx + hw * 0.15, cy + hh * 0.45);
+    ctx.moveTo(trailRight, cy - coreH * 0.28);
+    ctx.lineTo(trailRight, cy + coreH * 0.28);
+    ctx.lineTo(trailLeft, cy + coreH * 0.08);
+    ctx.lineTo(trailLeft, cy - coreH * 0.08);
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = darkenColor(color, 40);
+    // ── 엔진 노즐 밴드 (레퍼런스처럼 가로로 강한 파란 빛) ──
+    ctx.shadowColor = '#4da6ff';
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = 'rgba(40, 130, 255, 0.45)';
+    ctx.fillRect(bankX - bankW * 0.2, cy - bankH * 0.55, bankW * 1.4, bankH * 1.1);
+
+    const nozzleGrad = ctx.createLinearGradient(bankX, cy - bankH / 2, bankX, cy + bankH / 2);
+    nozzleGrad.addColorStop(0, 'rgba(80, 160, 255, 0.35)');
+    nozzleGrad.addColorStop(0.5, 'rgba(230, 250, 255, 1)');
+    nozzleGrad.addColorStop(1, 'rgba(80, 160, 255, 0.35)');
+    ctx.fillStyle = nozzleGrad;
+    ctx.fillRect(bankX, cy - bankH / 2, bankW, bankH);
+
+    // 가로 슬랫
+    ctx.shadowBlur = 6;
+    ctx.fillStyle = '#f2fbff';
+    const slotCount = 5;
+    for (let i = 0; i < slotCount; i++) {
+        const t = (i + 0.5) / slotCount;
+        const sy = cy - bankH / 2 + t * bankH - 1;
+        ctx.fillRect(bankX - bankW * 0.15, sy, bankW * 1.25, 2);
+    }
+
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
+    ctx.restore();
+}
+
+function fillPlumpEllipse(cx, cy, rx, ry, hex) {
+    ctx.fillStyle = shipShade(hex, 'shadow');
     ctx.beginPath();
-    ctx.ellipse(cx - hw * 0.55, cy, hw * 0.18, hh * 0.35, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx + rx * 0.08, cy + ry * 0.12, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = shipShade(hex, 'mid');
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx * 0.92, ry * 0.9, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = shipShade(hex, 'highlight');
+    ctx.beginPath();
+    ctx.ellipse(cx - rx * 0.22, cy - ry * 0.28, rx * 0.45, ry * 0.38, 0, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+/*
+ * Falcon design prompt (implementation guide):
+ * Top-down Millennium Falcon game sprite, facing right.
+ * Circular saucer with radial panels + center hub; keep highlight/mid/shadow volume.
+ * Twin forward mandibles on the RIGHT: parallel mechanical forks, trapezoid bodies,
+ * blunt flat tips (not needle horns), inner notch, tip detail dot, clear center gap.
+ * Offset cockpit capsule on the LEFT of the saucer (engine/rear-left), short neck + rounded pod.
+ * Rear blue neon engine band + long gradient plume to screen-left edge (unchanged behavior).
+ * Metallic gray #c8c8c8, readable at ~40×30.
+ */
+function drawFalcon(cx, cy, w, h, color = '#c8c8c8') {
+    const hw = w / 2;
+    const hh = h / 2;
+    const hex = color.startsWith('#') ? color : '#c8c8c8';
+    const discCx = cx - hw * 0.08;
+    const discR = Math.min(hw, hh) * 0.95;
+
+    ctx.save();
+
+    // 후방 파란 엔진 플룸 (왼쪽)
+    drawFalconEngineNeon(cx, cy, hw, hh);
+
+    // ── 원반 동체 (입체 음영) ──
+    ctx.fillStyle = shipShade(hex, 'shadow');
+    ctx.beginPath();
+    ctx.arc(discCx + discR * 0.06, cy + discR * 0.08, discR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = shipShade(hex, 'mid');
+    ctx.beginPath();
+    ctx.arc(discCx, cy, discR * 0.96, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = shipShade(hex, 'highlight');
+    ctx.beginPath();
+    ctx.ellipse(discCx - discR * 0.22, cy - discR * 0.28, discR * 0.42, discR * 0.34, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = lightenColor(color, 50);
-    ctx.beginPath();
-    ctx.ellipse(cx - hw * 0.05, cy - hh * 0.55, hw * 0.12, hh * 0.18, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = lightenColor(color, 80);
-    ctx.beginPath();
-    ctx.arc(cx - hw * 0.65, cy, hw * 0.06, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(cx - hw * 0.72, cy - hh * 0.15, hw * 0.04, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(cx - hw * 0.72, cy + hh * 0.15, hw * 0.04, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = darkenColor(color, 60);
+    // 방사형 패널 라인
+    ctx.strokeStyle = shipShade(hex, 'deep');
     ctx.lineWidth = 1;
+    ctx.globalAlpha = 0.55;
+    for (let i = 0; i < 6; i++) {
+        const a = -Math.PI / 2 + (i * Math.PI) / 3;
+        ctx.beginPath();
+        ctx.moveTo(discCx + Math.cos(a) * discR * 0.22, cy + Math.sin(a) * discR * 0.22);
+        ctx.lineTo(discCx + Math.cos(a) * discR * 0.9, cy + Math.sin(a) * discR * 0.9);
+        ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // 중앙 허브
+    ctx.fillStyle = shipShade(hex, 'deep');
     ctx.beginPath();
-    ctx.moveTo(cx - hw * 0.45, cy - hh * 0.5);
-    ctx.lineTo(cx + hw * 0.3, cy - hh * 0.35);
-    ctx.stroke();
+    ctx.arc(discCx, cy, discR * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = shipShade(hex, 'highlight');
     ctx.beginPath();
-    ctx.moveTo(cx - hw * 0.45, cy + hh * 0.5);
-    ctx.lineTo(cx + hw * 0.3, cy + hh * 0.35);
-    ctx.stroke();
+    ctx.arc(discCx - discR * 0.04, cy - discR * 0.04, discR * 0.1, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 상·하 가장자리 기계 노치
+    ctx.fillStyle = shipShade(hex, 'shadow');
+    ctx.fillRect(discCx - discR * 0.12, cy - discR * 0.98, discR * 0.24, discR * 0.14);
+    ctx.fillRect(discCx - discR * 0.12, cy + discR * 0.84, discR * 0.24, discR * 0.14);
+
+    // ── 전방 만디블 (우측): 평행 사다리꼴 + 뭉툭한 끝 ──
+    const drawMandible = (ySign) => {
+        const rootX = discCx + discR * 0.55;
+        const tipX = cx + hw * 0.95;
+        const midY = cy + ySign * discR * 0.38;
+        const yOuter = midY + ySign * discR * 0.2;
+        const yInner = midY + ySign * discR * 0.05;
+
+        // shadow
+        ctx.fillStyle = shipShade(hex, 'shadow');
+        ctx.beginPath();
+        ctx.moveTo(rootX, yOuter);
+        ctx.lineTo(tipX, yOuter - ySign * discR * 0.06);
+        ctx.lineTo(tipX, yInner);
+        ctx.lineTo(rootX + discR * 0.12, yInner);
+        ctx.closePath();
+        ctx.fill();
+
+        // mid body — 평행 포크, 끝은 뭉툭
+        ctx.fillStyle = shipShade(hex, 'mid');
+        ctx.beginPath();
+        ctx.moveTo(rootX, yOuter);
+        ctx.lineTo(tipX - hw * 0.05, yOuter - ySign * discR * 0.04);
+        ctx.lineTo(tipX, yOuter - ySign * discR * 0.08);
+        ctx.lineTo(tipX, yInner + ySign * discR * 0.02);
+        ctx.lineTo(tipX - hw * 0.05, yInner);
+        ctx.lineTo(rootX + discR * 0.08, yInner);
+        ctx.closePath();
+        ctx.fill();
+
+        // highlight strip
+        ctx.fillStyle = shipShade(hex, 'highlight');
+        ctx.beginPath();
+        ctx.moveTo(rootX + discR * 0.04, yOuter - ySign * discR * 0.04);
+        ctx.lineTo(tipX - hw * 0.12, yOuter - ySign * discR * 0.1);
+        ctx.lineTo(tipX - hw * 0.12, yOuter - ySign * discR * 0.16);
+        ctx.lineTo(rootX + discR * 0.04, yOuter - ySign * discR * 0.1);
+        ctx.closePath();
+        ctx.fill();
+
+        // 안쪽 사각 노치
+        ctx.fillStyle = shipShade(hex, 'deep');
+        const notchX = rootX + (tipX - rootX) * 0.42;
+        const notchY = (yOuter + yInner) / 2;
+        ctx.fillRect(notchX - hw * 0.05, notchY - hh * 0.04, hw * 0.1, hh * 0.08);
+
+        // 끝단 디테일 점
+        ctx.beginPath();
+        ctx.arc(tipX - hw * 0.035, (yOuter + yInner) / 2, Math.max(1.2, hw * 0.04), 0, Math.PI * 2);
+        ctx.fill();
+    };
+    drawMandible(-1);
+    drawMandible(1);
+
+    // ── 왼쪽(후방 쪽) 오프셋 조종석 포드 ──
+    const cockBaseX = discCx - discR * 0.55;
+    const cockY = cy + discR * 0.42;
+    const neckX1 = discCx - discR * 0.25;
+    const neckY1 = cy + discR * 0.2;
+
+    // 목
+    ctx.fillStyle = shipShade(hex, 'shadow');
+    ctx.beginPath();
+    ctx.moveTo(neckX1, neckY1);
+    ctx.lineTo(cockBaseX + hw * 0.08, cockY - hh * 0.12);
+    ctx.lineTo(cockBaseX + hw * 0.08, cockY + hh * 0.12);
+    ctx.lineTo(neckX1 - hw * 0.02, neckY1 + hh * 0.16);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = shipShade(hex, 'mid');
+    ctx.beginPath();
+    ctx.moveTo(neckX1, neckY1 + hh * 0.02);
+    ctx.lineTo(cockBaseX + hw * 0.06, cockY - hh * 0.08);
+    ctx.lineTo(cockBaseX + hw * 0.06, cockY + hh * 0.08);
+    ctx.lineTo(neckX1 - hw * 0.01, neckY1 + hh * 0.12);
+    ctx.closePath();
+    ctx.fill();
+
+    // 캡슐 조종석 (왼쪽)
+    const podRx = hw * 0.2;
+    const podRy = hh * 0.22;
+    const podCx = cockBaseX - hw * 0.02;
+    ctx.fillStyle = shipShade(hex, 'shadow');
+    ctx.beginPath();
+    ctx.ellipse(podCx + 1, cockY + 1, podRx, podRy, -0.35, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = shipShade(hex, 'mid');
+    ctx.beginPath();
+    ctx.ellipse(podCx, cockY, podRx * 0.95, podRy * 0.92, -0.35, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = shipShade(hex, 'highlight');
+    ctx.beginPath();
+    ctx.ellipse(podCx - podRx * 0.2, cockY - podRy * 0.25, podRx * 0.4, podRy * 0.35, -0.35, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 조종석 창
+    drawShipCockpit(podCx - podRx * 0.15, cockY - podRy * 0.05, Math.min(hw, hh) * 0.1);
+
+    // 목 뿌리 원형 디테일
+    ctx.fillStyle = shipShade(hex, 'deep');
+    ctx.beginPath();
+    ctx.arc(neckX1, neckY1 + hh * 0.06, discR * 0.1, 0, Math.PI * 2);
+    ctx.fill();
 
     ctx.restore();
 }
 
-function drawStarDestroyer(cx, cy, w, h, color = 'red') {
+function drawStarDestroyer(cx, cy, w, h, color = '#ee2222') {
+    // Imperial Star Destroyer: 사각뿔(쐐기) 실루엣 — 좌측 tip, 우측 넓은 선미 + 후방 브리지
     const hw = w / 2;
     const hh = h / 2;
+    const hex = color.startsWith('#') ? color : '#ee2222';
+    const tipX = cx - hw;
+    const sternX = cx + hw * 0.9;
+    const sternHalf = hh;
 
     ctx.save();
 
-    ctx.fillStyle = color;
+    drawThrusterGlow(sternX - hw * 0.05, cy - hh * 0.22, Math.min(hw, hh) * 0.08);
+    drawThrusterGlow(sternX - hw * 0.05, cy, Math.min(hw, hh) * 0.09);
+    drawThrusterGlow(sternX - hw * 0.05, cy + hh * 0.22, Math.min(hw, hh) * 0.08);
+
+    // 하단(그림자) 면 — 약간 아래로 어긋난 쐐기
+    ctx.fillStyle = shipShade(hex, 'shadow');
     ctx.beginPath();
-    ctx.moveTo(cx - hw, cy);
-    ctx.lineTo(cx + hw * 0.85, cy - hh);
-    ctx.lineTo(cx + hw * 0.85, cy + hh);
+    ctx.moveTo(tipX, cy + hh * 0.06);
+    ctx.lineTo(sternX, cy + sternHalf);
+    ctx.lineTo(sternX, cy + hh * 0.08);
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = darkenColor('#cc0000', 30);
-    ctx.fillRect(cx + hw * 0.55, cy - hh * 0.35, hw * 0.3, hh * 0.7);
-
-    ctx.fillStyle = darkenColor('#cc0000', 50);
+    // 본체 쐐기 (직선만)
+    ctx.fillStyle = shipShade(hex, 'mid');
     ctx.beginPath();
-    ctx.moveTo(cx + hw * 0.7, cy - hh * 0.2);
-    ctx.lineTo(cx + hw * 0.85, cy - hh * 0.15);
-    ctx.lineTo(cx + hw * 0.85, cy + hh * 0.15);
-    ctx.lineTo(cx + hw * 0.7, cy + hh * 0.2);
+    ctx.moveTo(tipX, cy);
+    ctx.lineTo(sternX, cy - sternHalf);
+    ctx.lineTo(sternX, cy + sternHalf);
     ctx.closePath();
     ctx.fill();
 
-    ctx.strokeStyle = darkenColor('#cc0000', 20);
+    // 상단 하이라이트 면 (중앙 능선 → 우상단)
+    ctx.fillStyle = shipShade(hex, 'highlight');
+    ctx.beginPath();
+    ctx.moveTo(tipX, cy);
+    ctx.lineTo(sternX, cy - sternHalf);
+    ctx.lineTo(sternX, cy - hh * 0.12);
+    ctx.lineTo(cx - hw * 0.1, cy);
+    ctx.closePath();
+    ctx.fill();
+
+    // 중앙 능선
+    ctx.strokeStyle = shipShade(hex, 'deep');
     ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(tipX, cy);
+    ctx.lineTo(sternX - hw * 0.35, cy);
+    ctx.stroke();
+
+    // 가로 패널 (쐐기 폭에 맞춰 직선)
+    ctx.globalAlpha = 0.65;
     for (let i = 0; i < 4; i++) {
-        const t = 0.2 + i * 0.18;
-        const x = cx - hw + (cx + hw * 0.85 - (cx - hw)) * t;
-        const halfW = hh * (0.15 + t * 0.85);
+        const t = 0.22 + i * 0.18;
+        const x = tipX + (sternX - tipX) * t;
+        const halfSpan = sternHalf * t;
         ctx.beginPath();
-        ctx.moveTo(x, cy - halfW);
-        ctx.lineTo(x, cy + halfW);
+        ctx.moveTo(x, cy - halfSpan);
+        ctx.lineTo(x, cy + halfSpan);
         ctx.stroke();
     }
+    ctx.globalAlpha = 1;
+
+    // 후방 브리지 타워 (각진 직사각)
+    const bx = cx + hw * 0.38;
+    const bw = hw * 0.42;
+    const bh = hh * 0.55;
+    ctx.fillStyle = shipShade(hex, 'deep');
+    ctx.fillRect(bx, cy - bh / 2, bw, bh);
+    ctx.fillStyle = shipShade(hex, 'shadow');
+    ctx.fillRect(bx + bw * 0.15, cy - bh * 0.32, bw * 0.7, bh * 0.64);
+
+    // 실드 제너레이터 돔 (브리지 상단 양쪽)
+    ctx.fillStyle = shipShade(hex, 'mid');
+    ctx.beginPath();
+    ctx.arc(bx + bw * 0.28, cy - bh * 0.15, hw * 0.07, 0, Math.PI * 2);
+    ctx.arc(bx + bw * 0.28, cy + bh * 0.15, hw * 0.07, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 전방 뷰포트 (작은 각진 점)
+    ctx.fillStyle = '#dff8ff';
+    ctx.fillRect(cx - hw * 0.35, cy - hh * 0.06, hw * 0.12, hh * 0.12);
 
     ctx.restore();
 }
 
 function drawTieFighter(cx, cy, w, h, color = '#00ff00') {
+    // TIE/ln: 중앙 구형 콕핏 + 상하 육각 솔라 패널 (직선 육각)
     const hw = w / 2;
     const hh = h / 2;
+    const hex = color.startsWith('#') ? color : '#00ff00';
 
     ctx.save();
 
-    ctx.fillStyle = color;
+    const drawHexPanel = (oy, rx, ry) => {
+        // 그림자 레이어
+        ctx.fillStyle = shipShade(hex, 'shadow');
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = (Math.PI / 3) * i - Math.PI / 2;
+            const px = cx + Math.cos(a) * rx;
+            const py = cy + oy + Math.sin(a) * ry + hh * 0.04;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = shipShade(hex, 'mid');
+        ctx.beginPath();
+        for (let i = 0; i < 6; i++) {
+            const a = (Math.PI / 3) * i - Math.PI / 2;
+            const px = cx + Math.cos(a) * rx;
+            const py = cy + oy + Math.sin(a) * ry;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+
+        // 패널 격자 (직선)
+        ctx.strokeStyle = shipShade(hex, 'deep');
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(cx - rx * 0.55, cy + oy);
+        ctx.lineTo(cx + rx * 0.55, cy + oy);
+        ctx.moveTo(cx, cy + oy - ry * 0.7);
+        ctx.lineTo(cx, cy + oy + ry * 0.7);
+        ctx.stroke();
+
+        // 하이라이트 면 (각진 사다리꼴)
+        ctx.fillStyle = shipShade(hex, 'highlight');
+        ctx.beginPath();
+        ctx.moveTo(cx - rx * 0.45, cy + oy - ry * 0.15);
+        ctx.lineTo(cx - rx * 0.1, cy + oy - ry * 0.55);
+        ctx.lineTo(cx + rx * 0.15, cy + oy - ry * 0.45);
+        ctx.lineTo(cx - rx * 0.2, cy + oy);
+        ctx.closePath();
+        ctx.fill();
+    };
+
+    drawHexPanel(-hh * 0.72, hw * 0.88, hh * 0.38);
+    drawHexPanel(hh * 0.72, hw * 0.88, hh * 0.38);
+
+    // 연결 암 (직선 바)
+    ctx.fillStyle = shipShade(hex, 'deep');
+    ctx.fillRect(cx - hw * 0.06, cy - hh * 0.55, hw * 0.12, hh * 0.22);
+    ctx.fillRect(cx - hw * 0.06, cy + hh * 0.33, hw * 0.12, hh * 0.22);
+
+    // 중앙 콕핏 구 — 각진 팔면체 느낌의 다이아몬드 레이어
+    const cr = Math.min(hw, hh) * 0.42;
+    ctx.fillStyle = shipShade(hex, 'shadow');
     ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-        const angle = (Math.PI / 3) * i - Math.PI / 2;
-        const px = cx + Math.cos(angle) * hw * 0.85;
-        const py = cy - hh * 0.75 + Math.sin(angle) * hh * 0.35;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-    }
+    ctx.moveTo(cx, cy - cr * 1.05);
+    ctx.lineTo(cx + cr * 1.05, cy);
+    ctx.lineTo(cx, cy + cr * 1.05);
+    ctx.lineTo(cx - cr * 1.05, cy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = shipShade(hex, 'mid');
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - cr * 0.9);
+    ctx.lineTo(cx + cr * 0.9, cy);
+    ctx.lineTo(cx, cy + cr * 0.9);
+    ctx.lineTo(cx - cr * 0.9, cy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = shipShade(hex, 'highlight');
+    ctx.beginPath();
+    ctx.moveTo(cx - cr * 0.35, cy - cr * 0.15);
+    ctx.lineTo(cx, cy - cr * 0.7);
+    ctx.lineTo(cx + cr * 0.15, cy - cr * 0.25);
+    ctx.lineTo(cx - cr * 0.1, cy);
     ctx.closePath();
     ctx.fill();
 
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-        const angle = (Math.PI / 3) * i - Math.PI / 2;
-        const px = cx + Math.cos(angle) * hw * 0.85;
-        const py = cy + hh * 0.75 + Math.sin(angle) * hh * 0.35;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-    }
-    ctx.closePath();
-    ctx.fill();
-
-    ctx.fillStyle = darkenColor(color, 50);
-    ctx.beginPath();
-    ctx.arc(cx, cy, hw * 0.3, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = darkenColor(color, 80);
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(cx - hw * 0.15, cy);
-    ctx.lineTo(cx + hw * 0.15, cy);
-    ctx.stroke();
-
-    ctx.fillStyle = lightenColor(color, 40);
-    ctx.beginPath();
-    ctx.arc(cx - hw * 0.08, cy, hw * 0.06, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = darkenColor(color, 30);
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - hh * 0.4);
-    ctx.lineTo(cx, cy - hh * 0.75);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx, cy + hh * 0.4);
-    ctx.lineTo(cx, cy + hh * 0.75);
-    ctx.stroke();
+    drawThrusterGlow(cx + cr * 0.85, cy, Math.min(hw, hh) * 0.1);
+    drawShipCockpit(cx, cy, Math.min(hw, hh) * 0.14);
 
     ctx.restore();
 }
 
-function drawYwing(cx, cy, w, h, color = 'yellow') {
+function drawYwing(cx, cy, w, h, color = '#ffdd00') {
+    // BTL Y-wing: 쐐기 콕핏 + 중앙 스파 + 쌍 엔진 나셀 (직선)
     const hw = w / 2;
     const hh = h / 2;
+    const hex = color.startsWith('#') ? color : '#ffdd00';
 
     ctx.save();
 
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.ellipse(cx - hw * 0.55, cy, hw * 0.2, hh * 0.3, 0, 0, Math.PI * 2);
-    ctx.fill();
+    const drawNacelle = (oy) => {
+        const nx = cx + hw * 0.05;
+        const nw = hw * 0.85;
+        const nh = hh * 0.28;
+        // 그림자
+        ctx.fillStyle = shipShade(hex, 'shadow');
+        ctx.beginPath();
+        ctx.moveTo(nx, cy + oy - nh * 0.3);
+        ctx.lineTo(nx + nw, cy + oy - nh * 0.55);
+        ctx.lineTo(nx + nw, cy + oy + nh * 0.7);
+        ctx.lineTo(nx, cy + oy + nh * 0.45);
+        ctx.closePath();
+        ctx.fill();
+        // 본체
+        ctx.fillStyle = shipShade(hex, 'mid');
+        ctx.beginPath();
+        ctx.moveTo(nx, cy + oy - nh * 0.45);
+        ctx.lineTo(nx + nw * 0.95, cy + oy - nh * 0.7);
+        ctx.lineTo(nx + nw * 0.95, cy + oy + nh * 0.55);
+        ctx.lineTo(nx, cy + oy + nh * 0.3);
+        ctx.closePath();
+        ctx.fill();
+        // 하이라이트
+        ctx.fillStyle = shipShade(hex, 'highlight');
+        ctx.beginPath();
+        ctx.moveTo(nx + nw * 0.1, cy + oy - nh * 0.35);
+        ctx.lineTo(nx + nw * 0.75, cy + oy - nh * 0.55);
+        ctx.lineTo(nx + nw * 0.75, cy + oy - nh * 0.15);
+        ctx.lineTo(nx + nw * 0.1, cy + oy - nh * 0.05);
+        ctx.closePath();
+        ctx.fill();
+        // 전방 센서 돔 (작은 각진 박스)
+        ctx.fillStyle = shipShade(hex, 'deep');
+        ctx.fillRect(nx - hw * 0.08, cy + oy - nh * 0.2, hw * 0.1, nh * 0.4);
+        drawThrusterGlow(nx + nw * 0.95, cy + oy, Math.min(hw, hh) * 0.09);
+    };
 
-    ctx.fillRect(cx - hw * 0.4, cy - hh * 0.08, hw * 0.75, hh * 0.16);
+    drawNacelle(-hh * 0.55);
+    drawNacelle(hh * 0.55);
 
-    ctx.beginPath();
-    ctx.ellipse(cx + hw * 0.35, cy - hh * 0.55, hw * 0.12, hh * 0.45, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(cx + hw * 0.35, cy + hh * 0.55, hw * 0.12, hh * 0.45, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = darkenColor('#cccc00', 40);
-    ctx.lineWidth = 1.5;
+    // 파일론 (직선)
+    ctx.strokeStyle = shipShade(hex, 'deep');
+    ctx.lineWidth = Math.max(1.5, hw * 0.07);
     ctx.beginPath();
     ctx.moveTo(cx - hw * 0.15, cy - hh * 0.1);
-    ctx.lineTo(cx + hw * 0.25, cy - hh * 0.45);
-    ctx.stroke();
-    ctx.beginPath();
+    ctx.lineTo(cx + hw * 0.15, cy - hh * 0.45);
     ctx.moveTo(cx - hw * 0.15, cy + hh * 0.1);
-    ctx.lineTo(cx + hw * 0.25, cy + hh * 0.45);
+    ctx.lineTo(cx + hw * 0.15, cy + hh * 0.45);
     ctx.stroke();
 
-    ctx.fillStyle = darkenColor('#cccc00', 30);
+    // 중앙 스파 (각진 바)
+    ctx.fillStyle = shipShade(hex, 'shadow');
+    ctx.fillRect(cx - hw * 0.45, cy - hh * 0.1, hw * 1.05, hh * 0.28);
+    ctx.fillStyle = shipShade(hex, 'mid');
+    ctx.fillRect(cx - hw * 0.45, cy - hh * 0.14, hw * 1.0, hh * 0.22);
+    ctx.fillStyle = shipShade(hex, 'highlight');
+    ctx.fillRect(cx - hw * 0.4, cy - hh * 0.14, hw * 0.9, hh * 0.07);
+
+    // 전방 쐐기 콕핏
+    ctx.fillStyle = shipShade(hex, 'shadow');
     ctx.beginPath();
-    ctx.arc(cx + hw * 0.35, cy - hh * 0.55, hw * 0.06, 0, Math.PI * 2);
+    ctx.moveTo(cx - hw, cy);
+    ctx.lineTo(cx - hw * 0.35, cy - hh * 0.35);
+    ctx.lineTo(cx - hw * 0.35, cy + hh * 0.35);
+    ctx.closePath();
     ctx.fill();
+    ctx.fillStyle = shipShade(hex, 'mid');
     ctx.beginPath();
-    ctx.arc(cx + hw * 0.35, cy + hh * 0.55, hw * 0.06, 0, Math.PI * 2);
+    ctx.moveTo(cx - hw * 0.95, cy);
+    ctx.lineTo(cx - hw * 0.38, cy - hh * 0.28);
+    ctx.lineTo(cx - hw * 0.38, cy + hh * 0.28);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = shipShade(hex, 'highlight');
+    ctx.beginPath();
+    ctx.moveTo(cx - hw * 0.95, cy);
+    ctx.lineTo(cx - hw * 0.5, cy - hh * 0.22);
+    ctx.lineTo(cx - hw * 0.45, cy - hh * 0.05);
+    ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = lightenColor('#cccc00', 30);
-    ctx.beginPath();
-    ctx.arc(cx - hw * 0.1, cy, hw * 0.08, 0, Math.PI * 2);
-    ctx.fill();
+    drawShipCockpit(cx - hw * 0.55, cy, Math.min(hw, hh) * 0.12);
 
     ctx.restore();
 }
 
-function drawArquitens(cx, cy, w, h, color = 'orange') {
+function drawArquitens(cx, cy, w, h, color = '#ff8800') {
+    // Arquitens: 카이트형 쐐기 + 전방 갈라진 스파 + T형 브리지 + 3엔진
     const hw = w / 2;
     const hh = h / 2;
+    const hex = color.startsWith('#') ? color : '#ff8800';
+    const tipX = cx - hw;
+    const sternX = cx + hw * 0.75;
 
     ctx.save();
 
-    ctx.fillStyle = color;
+    // 3엔진 글로우
+    drawThrusterGlow(sternX, cy - hh * 0.28, Math.min(hw, hh) * 0.08);
+    drawThrusterGlow(sternX + hw * 0.05, cy, Math.min(hw, hh) * 0.1);
+    drawThrusterGlow(sternX, cy + hh * 0.28, Math.min(hw, hh) * 0.08);
+
+    // 하단 그림자 면
+    ctx.fillStyle = shipShade(hex, 'shadow');
     ctx.beginPath();
-    ctx.moveTo(cx - hw, cy);
-    ctx.lineTo(cx + hw * 0.7, cy - hh * 0.55);
-    ctx.lineTo(cx + hw * 0.7, cy + hh * 0.55);
+    ctx.moveTo(tipX + hw * 0.15, cy + hh * 0.08);
+    ctx.lineTo(sternX, cy + hh * 0.55);
+    ctx.lineTo(sternX, cy + hh * 0.1);
+    ctx.lineTo(cx - hw * 0.2, cy + hh * 0.05);
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = darkenColor('#cc7700', 30);
-    ctx.fillRect(cx + hw * 0.35, cy - hh * 0.25, hw * 0.25, hh * 0.5);
-
-    ctx.fillStyle = darkenColor('#cc7700', 50);
+    // 본체 카이트 (직선)
+    ctx.fillStyle = shipShade(hex, 'mid');
     ctx.beginPath();
-    ctx.moveTo(cx + hw * 0.5, cy - hh * 0.15);
-    ctx.lineTo(cx + hw * 0.7, cy - hh * 0.1);
-    ctx.lineTo(cx + hw * 0.7, cy + hh * 0.1);
-    ctx.lineTo(cx + hw * 0.5, cy + hh * 0.15);
+    ctx.moveTo(tipX + hw * 0.28, cy);           // 갈라진 함수 사이
+    ctx.lineTo(cx - hw * 0.15, cy - hh * 0.22);
+    ctx.lineTo(sternX, cy - hh * 0.5);
+    ctx.lineTo(sternX, cy + hh * 0.5);
+    ctx.lineTo(cx - hw * 0.15, cy + hh * 0.22);
     ctx.closePath();
     ctx.fill();
 
-    ctx.strokeStyle = darkenColor('#cc7700', 20);
+    // 전방 이중 스파 (cleaved bow)
+    ctx.fillStyle = shipShade(hex, 'mid');
+    ctx.beginPath();
+    ctx.moveTo(tipX, cy - hh * 0.18);
+    ctx.lineTo(cx - hw * 0.2, cy - hh * 0.28);
+    ctx.lineTo(cx - hw * 0.2, cy - hh * 0.08);
+    ctx.lineTo(tipX + hw * 0.12, cy - hh * 0.05);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(tipX, cy + hh * 0.18);
+    ctx.lineTo(cx - hw * 0.2, cy + hh * 0.28);
+    ctx.lineTo(cx - hw * 0.2, cy + hh * 0.08);
+    ctx.lineTo(tipX + hw * 0.12, cy + hh * 0.05);
+    ctx.closePath();
+    ctx.fill();
+
+    // 상단 하이라이트
+    ctx.fillStyle = shipShade(hex, 'highlight');
+    ctx.beginPath();
+    ctx.moveTo(tipX + hw * 0.28, cy);
+    ctx.lineTo(cx - hw * 0.15, cy - hh * 0.22);
+    ctx.lineTo(sternX - hw * 0.1, cy - hh * 0.4);
+    ctx.lineTo(sternX - hw * 0.1, cy - hh * 0.12);
+    ctx.lineTo(cx - hw * 0.05, cy);
+    ctx.closePath();
+    ctx.fill();
+
+    // 스파 하이라이트
+    ctx.fillStyle = shipShade(hex, 'highlight');
+    ctx.beginPath();
+    ctx.moveTo(tipX, cy - hh * 0.18);
+    ctx.lineTo(cx - hw * 0.2, cy - hh * 0.28);
+    ctx.lineTo(cx - hw * 0.2, cy - hh * 0.18);
+    ctx.lineTo(tipX + hw * 0.1, cy - hh * 0.1);
+    ctx.closePath();
+    ctx.fill();
+
+    // 패널 라인
+    ctx.strokeStyle = shipShade(hex, 'deep');
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(cx - hw * 0.5, cy);
-    ctx.lineTo(cx + hw * 0.5, cy);
+    ctx.moveTo(cx - hw * 0.05, cy);
+    ctx.lineTo(sternX - hw * 0.15, cy);
+    ctx.moveTo(cx - hw * 0.1, cy - hh * 0.15);
+    ctx.lineTo(cx - hw * 0.1, cy + hh * 0.15);
     ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - hh * 0.35);
-    ctx.lineTo(cx, cy + hh * 0.35);
-    ctx.stroke();
+
+    // T형 브리지
+    const bx = cx + hw * 0.15;
+    ctx.fillStyle = shipShade(hex, 'deep');
+    ctx.fillRect(bx, cy - hh * 0.12, hw * 0.45, hh * 0.24);
+    ctx.fillRect(bx + hw * 0.12, cy - hh * 0.28, hw * 0.22, hh * 0.56);
+
+    // 포탑 (작은 각진 박스)
+    ctx.fillStyle = shipShade(hex, 'shadow');
+    ctx.fillRect(bx - hw * 0.08, cy - hh * 0.32, hw * 0.12, hh * 0.12);
+    ctx.fillRect(bx - hw * 0.08, cy + hh * 0.2, hw * 0.12, hh * 0.12);
+
+    ctx.fillStyle = '#dff8ff';
+    ctx.fillRect(cx - hw * 0.05, cy - hh * 0.05, hw * 0.1, hh * 0.1);
 
     ctx.restore();
 }
@@ -2179,11 +2704,11 @@ function drawEnemyShip(e) {
     if (e.enemyType === 1) {
         drawTieFighter(cx, cy, w, h, '#00ff00');
     } else if (e.enemyType === 2) {
-        drawYwing(cx, cy, w, h, 'yellow');
+        drawYwing(cx, cy, w, h, '#ffdd00');
     } else if (e.enemyType === 3) {
-        drawArquitens(cx, cy, w, h, 'orange');
+        drawArquitens(cx, cy, w, h, '#ff8800');
     } else if (e.enemyType === 'line') {
-        drawStarDestroyer(cx, cy, w, h, 'red');
+        drawStarDestroyer(cx, cy, w, h, '#ee2222');
     }
 }
 
@@ -2204,7 +2729,7 @@ function draw() {
                 player.y,
                 player.width,
                 player.height,
-                '#00ffcc'
+                '#c8c8c8'
             );
         }
     }

@@ -42,15 +42,80 @@
                 <span id="mission-points" class="hud-value hud-value-slot slot-6">0</span>
             </div>
             <div class="settings-icon" id="btn-settings">⚙</div>
+            <div class="proto-rail proto-rail-hud" aria-hidden="true">
+                <svg viewBox="0 0 1000 28" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="protoGoldGradHud" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#e8d278"/>
+                            <stop offset="40%" stop-color="#c9a227"/>
+                            <stop offset="100%" stop-color="#6e5610"/>
+                        </linearGradient>
+                        <filter id="neonGlowHud" x="-10%" y="-100%" width="120%" height="300%">
+                            <feGaussianBlur in="SourceGraphic" stdDeviation="2.4" result="blur"/>
+                            <feMerge>
+                                <feMergeNode in="blur"/>
+                                <feMergeNode in="blur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                    </defs>
+                    <!-- straight steps + arc corners; edge faces playfield -->
+                    <path class="rail-body" fill="url(#protoGoldGradHud)"
+                        d="M0,0 H1000 V6
+                           H940 A5,5 0 0 0 935,11 V15 A5,5 0 0 0 940,20
+                           H820 A5,5 0 0 1 825,15 V11 A5,5 0 0 1 820,6
+                           H680 A5,5 0 0 0 675,11 V17 A5,5 0 0 0 680,22
+                           H500 A5,5 0 0 1 505,17 V11 A5,5 0 0 1 500,6
+                           H320 A5,5 0 0 0 315,11 V15 A5,5 0 0 0 320,20
+                           H180 A5,5 0 0 1 185,15 V11 A5,5 0 0 1 180,6
+                           H60 A5,5 0 0 0 55,11 V13 A5,5 0 0 0 60,18
+                           H0 V0 Z"/>
+                    <path class="rail-neon-bloom" filter="url(#neonGlowHud)"
+                        d="M1000,6
+                           H940 A5,5 0 0 0 935,11 V15 A5,5 0 0 0 940,20
+                           H820 A5,5 0 0 1 825,15 V11 A5,5 0 0 1 820,6
+                           H680 A5,5 0 0 0 675,11 V17 A5,5 0 0 0 680,22
+                           H500 A5,5 0 0 1 505,17 V11 A5,5 0 0 1 500,6
+                           H320 A5,5 0 0 0 315,11 V15 A5,5 0 0 0 320,20
+                           H180 A5,5 0 0 1 185,15 V11 A5,5 0 0 1 180,6
+                           H60 A5,5 0 0 0 55,11 V13 A5,5 0 0 0 60,18
+                           H0"/>
+                    <path class="rail-neon-mid"
+                        d="M1000,6
+                           H940 A5,5 0 0 0 935,11 V15 A5,5 0 0 0 940,20
+                           H820 A5,5 0 0 1 825,15 V11 A5,5 0 0 1 820,6
+                           H680 A5,5 0 0 0 675,11 V17 A5,5 0 0 0 680,22
+                           H500 A5,5 0 0 1 505,17 V11 A5,5 0 0 1 500,6
+                           H320 A5,5 0 0 0 315,11 V15 A5,5 0 0 0 320,20
+                           H180 A5,5 0 0 1 185,15 V11 A5,5 0 0 1 180,6
+                           H60 A5,5 0 0 0 55,11 V13 A5,5 0 0 0 60,18
+                           H0"/>
+                    <path class="rail-neon-core"
+                        d="M1000,6
+                           H940 A5,5 0 0 0 935,11 V15 A5,5 0 0 0 940,20
+                           H820 A5,5 0 0 1 825,15 V11 A5,5 0 0 1 820,6
+                           H680 A5,5 0 0 0 675,11 V17 A5,5 0 0 0 680,22
+                           H500 A5,5 0 0 1 505,17 V11 A5,5 0 0 1 500,6
+                           H320 A5,5 0 0 0 315,11 V15 A5,5 0 0 0 320,20
+                           H180 A5,5 0 0 1 185,15 V11 A5,5 0 0 1 180,6
+                           H60 A5,5 0 0 0 55,11 V13 A5,5 0 0 0 60,18
+                           H0"/>
+                    <path class="rail-groove" d="M24,3.5 H976"/>
+                    <circle class="rail-node-ring" cx="100" cy="12" r="4.5"/>
+                    <circle class="rail-node" cx="100" cy="12" r="2"/>
+                    <circle class="rail-node-ring" cx="350" cy="14" r="4.5"/>
+                    <circle class="rail-node" cx="350" cy="14" r="2"/>
+                    <circle class="rail-node-ring" cx="650" cy="14" r="4.5"/>
+                    <circle class="rail-node" cx="650" cy="14" r="2"/>
+                    <circle class="rail-node-ring" cx="900" cy="12" r="4.5"/>
+                    <circle class="rail-node" cx="900" cy="12" r="2"/>
+                </svg>
+            </div>
         </header>
         
         <main id="game-area">
             <canvas id="game-canvas"></canvas>
             <div id="cockpit-frame">
-                <div class="cockpit-corner cockpit-corner-tl"></div>
-                <div class="cockpit-corner cockpit-corner-tr"></div>
-                <div class="cockpit-corner cockpit-corner-bl"></div>
-                <div class="cockpit-corner cockpit-corner-br"></div>
                 <div class="cockpit-vignette"></div>
             </div>
             <div id="start-overlay" class="overlay">
@@ -66,6 +131,76 @@
         </main>
         
         <footer id="console">
+            <div class="proto-rail proto-rail-console" aria-hidden="true">
+                <svg viewBox="0 0 1000 28" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="protoGoldGradConsole" x1="0" y1="1" x2="0" y2="0">
+                            <stop offset="0%" stop-color="#e8d278"/>
+                            <stop offset="40%" stop-color="#c9a227"/>
+                            <stop offset="100%" stop-color="#6e5610"/>
+                        </linearGradient>
+                        <filter id="neonGlowConsole" x="-10%" y="-100%" width="120%" height="300%">
+                            <feGaussianBlur in="SourceGraphic" stdDeviation="2.4" result="blur"/>
+                            <feMerge>
+                                <feMergeNode in="blur"/>
+                                <feMergeNode in="blur"/>
+                                <feMergeNode in="SourceGraphic"/>
+                            </feMerge>
+                        </filter>
+                    </defs>
+                    <g transform="translate(0,28) scale(1,-1)">
+                        <path class="rail-body" fill="url(#protoGoldGradConsole)"
+                            d="M0,0 H1000 V6
+                               H940 A5,5 0 0 0 935,11 V15 A5,5 0 0 0 940,20
+                               H820 A5,5 0 0 1 825,15 V11 A5,5 0 0 1 820,6
+                               H680 A5,5 0 0 0 675,11 V17 A5,5 0 0 0 680,22
+                               H500 A5,5 0 0 1 505,17 V11 A5,5 0 0 1 500,6
+                               H320 A5,5 0 0 0 315,11 V15 A5,5 0 0 0 320,20
+                               H180 A5,5 0 0 1 185,15 V11 A5,5 0 0 1 180,6
+                               H60 A5,5 0 0 0 55,11 V13 A5,5 0 0 0 60,18
+                               H0 V0 Z"/>
+                        <path class="rail-neon-bloom" filter="url(#neonGlowConsole)"
+                            d="M1000,6
+                               H940 A5,5 0 0 0 935,11 V15 A5,5 0 0 0 940,20
+                               H820 A5,5 0 0 1 825,15 V11 A5,5 0 0 1 820,6
+                               H680 A5,5 0 0 0 675,11 V17 A5,5 0 0 0 680,22
+                               H500 A5,5 0 0 1 505,17 V11 A5,5 0 0 1 500,6
+                               H320 A5,5 0 0 0 315,11 V15 A5,5 0 0 0 320,20
+                               H180 A5,5 0 0 1 185,15 V11 A5,5 0 0 1 180,6
+                               H60 A5,5 0 0 0 55,11 V13 A5,5 0 0 0 60,18
+                               H0"/>
+                        <path class="rail-neon-mid"
+                            d="M1000,6
+                               H940 A5,5 0 0 0 935,11 V15 A5,5 0 0 0 940,20
+                               H820 A5,5 0 0 1 825,15 V11 A5,5 0 0 1 820,6
+                               H680 A5,5 0 0 0 675,11 V17 A5,5 0 0 0 680,22
+                               H500 A5,5 0 0 1 505,17 V11 A5,5 0 0 1 500,6
+                               H320 A5,5 0 0 0 315,11 V15 A5,5 0 0 0 320,20
+                               H180 A5,5 0 0 1 185,15 V11 A5,5 0 0 1 180,6
+                               H60 A5,5 0 0 0 55,11 V13 A5,5 0 0 0 60,18
+                               H0"/>
+                        <path class="rail-neon-core"
+                            d="M1000,6
+                               H940 A5,5 0 0 0 935,11 V15 A5,5 0 0 0 940,20
+                               H820 A5,5 0 0 1 825,15 V11 A5,5 0 0 1 820,6
+                               H680 A5,5 0 0 0 675,11 V17 A5,5 0 0 0 680,22
+                               H500 A5,5 0 0 1 505,17 V11 A5,5 0 0 1 500,6
+                               H320 A5,5 0 0 0 315,11 V15 A5,5 0 0 0 320,20
+                               H180 A5,5 0 0 1 185,15 V11 A5,5 0 0 1 180,6
+                               H60 A5,5 0 0 0 55,11 V13 A5,5 0 0 0 60,18
+                               H0"/>
+                        <path class="rail-groove" d="M24,3.5 H976"/>
+                        <circle class="rail-node-ring" cx="100" cy="12" r="4.5"/>
+                        <circle class="rail-node" cx="100" cy="12" r="2"/>
+                        <circle class="rail-node-ring" cx="350" cy="14" r="4.5"/>
+                        <circle class="rail-node" cx="350" cy="14" r="2"/>
+                        <circle class="rail-node-ring" cx="650" cy="14" r="4.5"/>
+                        <circle class="rail-node" cx="650" cy="14" r="2"/>
+                        <circle class="rail-node-ring" cx="900" cy="12" r="4.5"/>
+                        <circle class="rail-node" cx="900" cy="12" r="2"/>
+                    </g>
+                </svg>
+            </div>
             <div id="console-msg-1">적 함선 출현. 함포가 준비되었습니다.</div>
             <div id="console-msg-2">
                 <span id="console-msg-2-text">목표물을 설정하십시오.</span>
@@ -125,18 +260,18 @@
         </div>
         <div class="modal-settings-fields">
             <label>
-                Callsign:
+                <span>Callsign:</span>
                 <input type="text" id="setting-name" value="Player">
             </label>
             <label>
-                Comms Language:
+                <span>Comms Language:</span>
                 <select id="setting-lang">
                     <option value="ko">한글</option>
                     <option value="en">English</option>
                 </select>
             </label>
             <label id="grade-field">
-                Grade:
+                <span>Grade:</span>
                 <select id="setting-grade">
                     <option value="1">1</option>
                     <option value="2">2</option>
