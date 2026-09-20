@@ -3154,8 +3154,9 @@ function showGameOver() {
     showEndScreen('Mission Failed.');
 }
 
-function rankKeystrokes(entry) {
-    const n = Number(entry && entry.keystrokes);
+function rankKpm(entry) {
+    // 신규: kpm(분당 타수). 예전 keystrokes(누적 타수) 필드는 무시한다.
+    const n = Number(entry && entry.kpm);
     return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : null;
 }
 
@@ -3168,8 +3169,8 @@ function buildRankScoreEl(entry) {
     pointsEl.textContent = String(entry.score);
     scoreEl.appendChild(pointsEl);
 
-    const keystrokes = rankKeystrokes(entry);
-    if (keystrokes === null) {
+    const kpm = rankKpm(entry);
+    if (kpm === null) {
         return scoreEl;
     }
 
@@ -3178,7 +3179,7 @@ function buildRankScoreEl(entry) {
     dotEl.textContent = '.';
     const keysEl = document.createElement('span');
     keysEl.className = 'rank-score-keys';
-    keysEl.textContent = String(keystrokes);
+    keysEl.textContent = String(kpm);
     scoreEl.appendChild(dotEl);
     scoreEl.appendChild(keysEl);
     return scoreEl;
@@ -3208,11 +3209,11 @@ function showEndScreen(title) {
         typeof item.name === 'string' &&
         Number.isFinite(Number(item.score))
     );
-    // 타자수: 명중 낱말의 누적 타수(totalTypedChars). 구기록은 필드가 없을 수 있다.
+    // 타자수: Keys/Min과 동일한 분당 타수(triggeringSkill). 구기록의 keystrokes(누적)는 무시.
     const currentEntry = {
         name: settings.name,
         score: finalMissionPoints,
-        keystrokes: Math.max(0, Math.floor(totalTypedChars)),
+        kpm: Math.max(0, Math.floor(triggeringSkill)),
         date: new Date().toLocaleDateString()
     };
     scores.push(currentEntry);
