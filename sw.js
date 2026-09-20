@@ -1,5 +1,5 @@
 /* STAR WORDS service worker — cache-first offline shell */
-const CACHE_NAME = 'starwords-v5';
+const CACHE_NAME = 'starwords-v8';
 const PRECACHE_URLS = [
     './',
     './index.html',
@@ -27,7 +27,7 @@ self.addEventListener('install', (event) => {
         caches.open(CACHE_NAME).then(async (cache) => {
             await Promise.all(
                 PRECACHE_URLS.map((url) =>
-                    cache.add(url).catch((err) => {
+                    cache.add(new Request(url, { cache: 'reload' })).catch((err) => {
                         console.warn('[STAR WORDS SW] precache failed:', url, err);
                     })
                 )

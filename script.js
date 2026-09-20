@@ -3084,6 +3084,36 @@ function showGameOver() {
     showEndScreen('Mission Failed.');
 }
 
+function rankKeystrokes(entry) {
+    const n = Number(entry && entry.keystrokes);
+    return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : null;
+}
+
+function buildRankScoreEl(entry) {
+    const scoreEl = document.createElement('span');
+    scoreEl.className = 'rank-score';
+
+    const pointsEl = document.createElement('span');
+    pointsEl.className = 'rank-score-points';
+    pointsEl.textContent = String(entry.score);
+    scoreEl.appendChild(pointsEl);
+
+    const keystrokes = rankKeystrokes(entry);
+    if (keystrokes === null) {
+        return scoreEl;
+    }
+
+    const dotEl = document.createElement('span');
+    dotEl.className = 'rank-score-dot';
+    dotEl.textContent = '.';
+    const keysEl = document.createElement('span');
+    keysEl.className = 'rank-score-keys';
+    keysEl.textContent = String(keystrokes);
+    scoreEl.appendChild(dotEl);
+    scoreEl.appendChild(keysEl);
+    return scoreEl;
+}
+
 function showEndScreen(title) {
     gameState = 'GAME_OVER';
     clearMissileWarning(false);
@@ -3108,7 +3138,13 @@ function showEndScreen(title) {
         typeof item.name === 'string' &&
         Number.isFinite(Number(item.score))
     );
-    const currentEntry = { name: settings.name, score: finalMissionPoints, date: new Date().toLocaleDateString() };
+    // 타자수: 명중 낱말의 누적 타수(totalTypedChars). 구기록은 필드가 없을 수 있다.
+    const currentEntry = {
+        name: settings.name,
+        score: finalMissionPoints,
+        keystrokes: Math.max(0, Math.floor(totalTypedChars)),
+        date: new Date().toLocaleDateString()
+    };
     scores.push(currentEntry);
     scores.sort((a, b) => b.score - a.score);
     scores = scores.slice(0, 10);
@@ -3121,11 +3157,8 @@ function showEndScreen(title) {
         const nameEl = document.createElement('span');
         nameEl.className = 'rank-name';
         nameEl.textContent = `${i + 1}. ${s.name}`;
-        const scoreEl = document.createElement('span');
-        scoreEl.className = 'rank-score';
-        scoreEl.textContent = String(s.score);
         li.appendChild(nameEl);
-        li.appendChild(scoreEl);
+        li.appendChild(buildRankScoreEl(s));
         if (s === currentEntry) {
             li.classList.add('current-score');
         }

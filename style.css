@@ -51,6 +51,7 @@
     --text-dim: rgba(0, 255, 204, 0.45);
     --text-alert: #ff3366;
     --text-mission-points: #ffe066;
+    --text-keystrokes: #c8ff3d;
     --beam-blue: #0032ff;
     --beam-cyan: #00ffff;
     --beam-core: #e6ffff;
@@ -913,6 +914,37 @@ canvas {
     font-size: 10px;
     color: var(--text-mission-points);
     flex-shrink: 0;
+    white-space: nowrap;
+}
+
+#scoreboard-list .rank-score-points,
+#scoreboard-list .rank-score-dot {
+    color: var(--text-mission-points);
+}
+
+#scoreboard-list .rank-score-keys {
+    color: var(--text-keystrokes);
+    text-shadow:
+        0 0 4px #c8ff3d,
+        0 0 10px rgba(180, 255, 40, 0.95),
+        0 0 18px rgba(150, 255, 0, 0.55);
+}
+
+#scoreboard-list li.current-score .rank-score,
+#scoreboard-list li.current-score .rank-score-points,
+#scoreboard-list li.current-score .rank-score-dot {
+    color: var(--text-mission-points);
+    text-shadow: none;
+    animation: none;
+}
+
+#scoreboard-list li.current-score .rank-score-keys {
+    color: var(--text-keystrokes);
+    text-shadow:
+        0 0 4px #c8ff3d,
+        0 0 10px rgba(180, 255, 40, 0.95),
+        0 0 18px rgba(150, 255, 0, 0.55);
+    animation: none;
 }
 
 #modal-game-over #btn-restart {
@@ -980,8 +1012,7 @@ li.current-score {
     color: var(--beam-cyan);
 }
 
-li.current-score .rank-name,
-li.current-score .rank-score {
+li.current-score .rank-name {
     color: var(--beam-cyan);
     text-shadow:
         0 0 6px var(--beam-blue),
