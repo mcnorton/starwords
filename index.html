@@ -266,7 +266,7 @@
             <div id="console-msg-1">적 함선 출현. 함포가 준비되었습니다.</div>
             <div id="console-msg-2">
                 <span id="console-msg-2-text">목표물을 설정하십시오.</span>
-                <span id="beam-code-label" class="beam-code-label hidden">POWER BEAM CODE :</span>
+                <span id="beam-code-label" class="beam-code-label hidden">POWER BEAM CODE</span>
                 <span id="beam-code-text" class="beam-code-text hidden"></span>
             </div>
             <div class="input-container">
@@ -278,9 +278,22 @@
     <!-- Modals -->
     <div id="modal-challenge-clear" class="modal hidden">
         <h2>Challenge Clear</h2>
-        <p>Ships Destroyed: <span id="clear-ships">0</span> x 100</p>
-        <p>Power Beam Fired: <span id="clear-beams">0</span> x 1000</p>
-        <p>Mission Points: <span id="clear-mission-points">0</span></p>
+        <div class="game-over-scores">
+            <div class="score-row">
+                <span class="score-label">Ships Destroyed</span>
+                <span class="score-value"><span id="clear-ships">0</span> x 100</span>
+            </div>
+            <div class="score-row">
+                <span class="score-label">Power Beam Fired</span>
+                <span class="score-value"><span id="clear-beams">0</span> x 1000</span>
+            </div>
+            <div class="score-highlights">
+                <div class="score-box">
+                    <span class="score-label">Mission Points</span>
+                    <span class="score-value" id="clear-mission-points">0</span>
+                </div>
+            </div>
+        </div>
         <button id="btn-next-challenge">Next Challenge</button>
         <p class="modal-hint">Press [ENTER] or click button to continue</p>
     </div>
@@ -322,18 +335,18 @@
         </div>
         <div class="modal-settings-fields">
             <label>
-                <span>Callsign:</span>
+                <span>Callsign</span>
                 <input type="text" id="setting-name" value="Player">
             </label>
             <label>
-                <span>Comms Language:</span>
+                <span>Comms Language</span>
                 <select id="setting-lang">
                     <option value="ko">한글</option>
                     <option value="en">English</option>
                 </select>
             </label>
             <label id="grade-field">
-                <span>Grade:</span>
+                <span>Grade</span>
                 <select id="setting-grade">
                     <option value="1">1</option>
                     <option value="2">2</option>

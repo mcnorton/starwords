@@ -801,12 +801,14 @@ canvas {
     font-size: 12px;
 }
 
-#modal-game-over {
+#modal-game-over,
+#modal-challenge-clear {
     min-width: 380px;
     padding: 28px 36px 24px;
 }
 
-#modal-game-over h2 {
+#modal-game-over h2,
+#modal-challenge-clear h2 {
     margin-bottom: 22px;
 }
 
@@ -947,7 +949,8 @@ canvas {
     animation: none;
 }
 
-#modal-game-over #btn-restart {
+#modal-game-over #btn-restart,
+#modal-challenge-clear #btn-next-challenge {
     margin-top: 18px;
 }
 
