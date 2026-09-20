@@ -1351,7 +1351,9 @@ function createNewEnemy() {
         height: eHeight,
         speed: speed,
         word: word,
-        enemyType: type
+        enemyType: type,
+        // 미진입(무적) 네온 방어막 알파. 완전 진입 후 fade out.
+        shieldAlpha: 1
     };
 
     if (type === 1) {
@@ -1850,6 +1852,13 @@ function update(dt) {
 
     for (let i = enemies.length - 1; i >= 0; i--) {
         let e = enemies[i];
+
+        // 미진입이면 방어막 풀 밝기, 진입하면 0.4초에 걸쳐 fade out.
+        if (!isEnemyOnScreen(e)) {
+            e.shieldAlpha = 1;
+        } else if (e.shieldAlpha > 0) {
+            e.shieldAlpha = Math.max(0, e.shieldAlpha - dt / 0.4);
+        }
 
         if (e.enemyType === 'line') {
             if (e.laserState === 'moving') {
@@ -2819,6 +2828,53 @@ function drawEnemyShip(e) {
     }
 }
 
+// 미진입(무적) 적 테두리 형광 네온 방어막. 함선 path는 건드리지 않고 타원 stroke만 그린다.
+function drawEnemyInvulnShield(e) {
+    const alpha = e.shieldAlpha;
+    if (!(alpha > 0)) return;
+
+    const pad = 6;
+    const rx = e.width / 2 + pad;
+    const ry = e.height / 2 + pad;
+    // 무적 중(알파≈1)만 약한 밝기 펄스. fade 중에는 알파만 감소.
+    const pulse = alpha >= 0.99
+        ? 0.82 + 0.18 * (0.5 + 0.5 * Math.sin(Date.now() * 0.01))
+        : 1;
+
+    ctx.save();
+    ctx.globalAlpha = alpha * pulse;
+    ctx.lineJoin = 'round';
+
+    // bloom
+    ctx.shadowColor = 'rgba(255, 61, 242, 0.95)';
+    ctx.shadowBlur = 14;
+    ctx.strokeStyle = 'rgba(255, 61, 242, 0.35)';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.ellipse(e.x, e.y, rx, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // mid neon
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = 'rgba(255, 140, 250, 0.85)';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.ellipse(e.x, e.y, rx, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // core
+    ctx.shadowBlur = 2;
+    ctx.strokeStyle = '#ffe6ff';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(e.x, e.y, rx, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
+    ctx.restore();
+}
+
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -2909,6 +2965,7 @@ function draw() {
 
     enemies.forEach(e => {
         drawEnemyShip(e);
+        drawEnemyInvulnShield(e);
 
         if (e.word !== "") {
             ctx.fillStyle = '#fff';
