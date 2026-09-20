@@ -580,6 +580,8 @@ function pauseGame() {
     isPaused = true;
     pauseStartTime = Date.now();
     pauseOverlay.classList.remove('hidden');
+    typeInput.blur();
+    typeInput.disabled = true;
 }
 
 function disableTypeInput() {
@@ -676,7 +678,7 @@ window.addEventListener('keydown', e => {
         e.preventDefault();
     }
 
-    if ((gameState === 'PLAYING' || gameState === 'BEAM_INPUT') && !typeInput.disabled) {
+    if ((gameState === 'PLAYING' || gameState === 'BEAM_INPUT') && !isPaused && !typeInput.disabled) {
         typeInput.focus();
     }
 });
@@ -688,7 +690,7 @@ window.addEventListener('keyup', e => {
 });
 
 typeInput.addEventListener('input', e => {
-    if (typeInput.disabled) return;
+    if (typeInput.disabled || isPaused) return;
 
     if (typeInput.value.length > 0 && !currentTypingStartTime) {
         currentTypingStartTime = Date.now();
@@ -699,7 +701,7 @@ typeInput.addEventListener('input', e => {
 });
 
 typeInput.addEventListener('keydown', e => {
-    if (typeInput.disabled) {
+    if (typeInput.disabled || isPaused) {
         e.preventDefault();
         return;
     }
@@ -731,7 +733,7 @@ typeInput.addEventListener('keydown', e => {
 
             if (text === '') return;
 
-            if (pendingChallengeClear || pendingGameOver) {
+            if (isPaused || pendingChallengeClear || pendingGameOver) {
                 return;
             }
 
@@ -775,6 +777,12 @@ function resumeAfterSettings() {
     }
     settingsPausedGame = false;
     wasPausedBeforeSettings = false;
+
+    if (isPaused) {
+        typeInput.blur();
+        typeInput.disabled = true;
+        return;
+    }
 
     if (gameState === 'PLAYING' || gameState === 'BEAM_INPUT' || gameState === 'START') {
         focusTypeInput();

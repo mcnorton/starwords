@@ -1,5 +1,5 @@
 /* STAR WORDS service worker — cache-first offline shell */
-const CACHE_NAME = 'starwords-v4';
+const CACHE_NAME = 'starwords-v5';
 const PRECACHE_URLS = [
     './',
     './index.html',
