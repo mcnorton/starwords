@@ -467,6 +467,7 @@ function reseatEnemiesIntoLanes() {
 let pendingChallengeClear = false;
 let pendingGameOver = false;
 let endScreenDelay = 0;
+let asteroidBurstScheduled = false;
 let stars = [];
 let particles = [];
 
@@ -1168,6 +1169,7 @@ function nextChallenge() {
     particles = [];
     asteroids = [];
     asteroidsSpawnedThisChallenge = false;
+    asteroidBurstScheduled = false;
     refreshWordPool();
     initSpawnLanes();
     spawnEnemies();
@@ -1236,6 +1238,7 @@ function resetGame() {
     pendingChallengeClear = false;
     pendingGameOver = false;
     endScreenDelay = 0;
+    asteroidBurstScheduled = false;
     enableTypeInput();
     msg1.textContent = "다수의 적 함선 탐지. 전원 전투태세. 함포가 준비되었습니다.";
     showConsoleMsg2("목표물을 설정하십시오.");
@@ -1459,6 +1462,70 @@ function updateAsteroids(dt) {
         }
 
         if (a.x < -a.radius - 20) {
+            asteroids.splice(i, 1);
+        }
+    }
+}
+
+function isAsteroidOnScreen(a) {
+    return a.x + a.radius > 0 && a.x - a.radius < canvas.width;
+}
+
+// 스테이지 종료 시 운석 불꽃놀이: 네온 팔레트 다색 폭파
+const ASTEROID_FIREWORK_COLORS = [
+    '#00ffcc', '#c8ff3d', '#ffe066', '#ff7700', '#ff4dff', '#3de8ff', '#ff3366', '#adff2f'
+];
+
+function createAsteroidFireworks(x, y) {
+    for (let i = 0; i < 55; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 320 + 80;
+        const life = Math.random() * 0.7 + 0.5;
+        particles.push({
+            x: x + (Math.random() - 0.5) * 10,
+            y: y + (Math.random() - 0.5) * 10,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: life,
+            maxLife: life + 0.6,
+            size: Math.random() * 6 + 2,
+            color: ASTEROID_FIREWORK_COLORS[Math.floor(Math.random() * ASTEROID_FIREWORK_COLORS.length)]
+        });
+    }
+}
+
+// 종료 연출: 화면 밖 운석은 즉시 제거, 화면 안 운석은 시차 폭파 예약
+function burstOnScreenAsteroids() {
+    if (asteroidBurstScheduled) return;
+    asteroidBurstScheduled = true;
+
+    const onScreen = [];
+    for (let i = asteroids.length - 1; i >= 0; i--) {
+        if (isAsteroidOnScreen(asteroids[i])) {
+            onScreen.push(asteroids[i]);
+        } else {
+            asteroids.splice(i, 1);
+        }
+    }
+
+    if (onScreen.length === 0) return;
+
+    // END_SCREEN_DELAY(2초) 안에 들어가게 간격 조절
+    const interval = Math.min(0.12, 1.4 / onScreen.length);
+    onScreen.forEach((a, i) => {
+        a.burstAt = i * interval;
+        a.bursting = true;
+    });
+}
+
+function updateAsteroidBursts(dt) {
+    for (let i = asteroids.length - 1; i >= 0; i--) {
+        const a = asteroids[i];
+        if (!a.bursting) continue;
+
+        a.burstAt -= dt;
+        if (a.burstAt <= 0) {
+            createAsteroidFireworks(a.x, a.y);
             asteroids.splice(i, 1);
         }
     }
@@ -1741,6 +1808,7 @@ function scheduleChallengeClear() {
     }
     pendingChallengeClear = true;
     endScreenDelay = 0;
+    burstOnScreenAsteroids();
     if (fireQueue.length === 0) {
         disableTypeInput();
     }
@@ -1752,6 +1820,7 @@ function scheduleGameOver() {
     }
     pendingGameOver = true;
     endScreenDelay = 0;
+    burstOnScreenAsteroids();
     if (energyShield <= 0) {
         createHugeExplosion(player.x + player.width / 2, player.y, '#00ffcc');
     }
@@ -1762,6 +1831,7 @@ function scheduleGameOver() {
 
 function updateEndingSequence(dt) {
     updateFireQueue(dt);
+    updateAsteroidBursts(dt);
 
     for (let i = lasers.length - 1; i >= 0; i--) {
         let l = lasers[i];
